@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# 只允许必要的依赖执行安装脚本（tsx 依赖 esbuild 的二进制）
+allowBuilds:
+  esbuild: true

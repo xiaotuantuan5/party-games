@@ -1,0 +1,14 @@
+{
+  "name": "party-games",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @party/server --filter @party/web dev",
+    "build": "pnpm --filter @party/web build",
+    "start": "pnpm --filter @party/server start",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

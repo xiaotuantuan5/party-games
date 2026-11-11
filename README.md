@@ -2,20 +2,73 @@
 
 聚会游戏 | A collection of party games
 
-一个聚会小游戏合集，适合朋友聚会、团建、破冰等场景一起玩。
+一个聚会小游戏合集，适合朋友聚会、团建、破冰等场景一起玩。每个人用自己的手机浏览器打开网页，输入房间号就能加入，不用装 App。
 
-## 计划
+## 游戏
 
-- [ ] 游戏列表与规则说明
-- [ ] 线上可玩的 Web 版本
-- [ ] 多人同屏 / 房间制玩法
+| 游戏 | 人数 | 状态 | 玩法 |
+| --- | --- | --- | --- |
+| 💣 数字炸弹 | 2~12 | ✅ 可玩 | 系统在 1~100 中藏一个数字，轮流猜，范围不断缩小，猜中的人“爆炸”。 |
+| 🕵️ 谁是卧底 | 4~12 | ✅ 可玩 | 平民拿同一个词，卧底拿相近的词（7 人及以上有 2 个卧底）。轮流用一句话描述，然后投票。卧底全部出局平民赢；卧底人数不少于平民时卧底赢。平票本轮无人出局。 |
+| 🎨 你画我猜 | 3~12 | 计划中 | 一人画、其他人抢答，需要实时同步画板笔迹。 |
+| 🐺 狼人杀（简化版） | 6~12 | 计划中 | 夜晚 / 白天阶段、多种身份，需要计时器与私密频道。 |
+
+## 技术选型
+
+全栈 **TypeScript**：
+
+- **服务端**：Node.js + [Socket.IO](https://socket.io/)。服务端是唯一可信的状态源，客户端只发送操作，服务端校验后给每个玩家下发“只含自己能看到的信息”的视图（比如卧底词不会发给别人）。
+- **前端**：React + Vite，移动端优先。
+- **共享包** `@party/shared`：通信协议和每个游戏的视图 / 操作类型，前后端共用，改协议时两边都会有类型检查。
+
+为什么这样选：
+
+- 前后端同一种语言，协议类型只写一次，一个人就能维护整个项目。
+- Socket.IO 自带房间、断线自动重连、WebSocket 不可用时降级到长轮询，适合手机网络。
+- 聚会游戏是回合制、每秒消息很少，Node 单进程足够支撑大量房间；以后要横向扩容可以接 Socket.IO 的 Redis adapter。
+
+## 目录结构
+
+```
+apps/
+  server/          Socket.IO 服务端
+    src/rooms.ts   房间管理：创建 / 加入 / 断线重连 / 房主转移
+    src/games/     每个游戏的规则引擎（实现 GameEngine 接口）
+  web/             React 前端
+    src/games/     每个游戏的界面
+packages/
+  shared/          前后端共享的协议与类型
+```
 
 ## 开发
 
+需要 Node.js 20+ 和 pnpm（`corepack enable` 即可）。
+
 ```bash
-git clone https://github.com/xiaotuantuan5/party-games.git
-cd party-games
+pnpm install
+pnpm dev          # 服务端 :3001 + 前端 :5173（Vite 会把 /socket.io 代理到服务端）
+pnpm typecheck
 ```
+
+手机和电脑在同一个局域网时，可以用手机访问 `http://<电脑IP>:5173` 一起测试。
+
+### 生产运行
+
+```bash
+pnpm build        # 打包前端到 apps/web/dist
+pnpm start        # 服务端在 PORT（默认 3001）同时提供页面和 WebSocket
+```
+
+### 添加新游戏
+
+1. 在 `packages/shared/src/games/` 定义视图和操作类型，并在 `GAMES` 中登记元信息。
+2. 在 `apps/server/src/games/` 实现 `GameEngine`（`setup` / `handleAction` / `viewFor` / `removePlayer`），并在 `ENGINES` 中注册。
+3. 在 `apps/web/src/games/` 写界面，并在 `App.tsx` 中按 `gameId` 渲染。
+
+## 已知限制
+
+- 房间状态保存在内存中，服务端重启后房间会丢失。
+- 轮到某个玩家时如果他断线，游戏会等他重连；房主可以随时结束本局回到大厅。
 
 ## License
 
