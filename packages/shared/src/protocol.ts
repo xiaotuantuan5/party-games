@@ -15,6 +15,8 @@ export interface RoomView {
   hostId: string;
   players: PlayerInfo[];
   selectedGame: GameId;
+  /** 第几局。“再来一局”时会变，前端用它作为 key 让游戏界面重新挂载，清空上一局的动画状态 */
+  gameNo: number;
   /** null 表示在大厅等待中 */
   game: GameView | null;
 }

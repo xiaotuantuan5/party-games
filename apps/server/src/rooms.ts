@@ -21,6 +21,8 @@ interface Room {
   players: Player[];
   selectedGame: GameId;
   game: { engine: AnyGameEngine; state: unknown } | null;
+  /** 每开一局 +1，前端据此在“再来一局”时重置游戏界面 */
+  gameNo: number;
   cleanupTimer: NodeJS.Timeout | null;
 }
 
@@ -66,6 +68,7 @@ export class RoomManager {
       players: [{ id: playerId, name, connected: true, socketId }],
       selectedGame: typeof gameId === "string" && gameId in GAMES ? (gameId as GameId) : "numberBomb",
       game: null,
+      gameNo: 0,
       cleanupTimer: null,
     };
     this.rooms.set(code, room);
@@ -153,6 +156,7 @@ export class RoomManager {
     if (n < engine.meta.minPlayers) throw new GameError(`${engine.meta.name}至少需要 ${engine.meta.minPlayers} 人`);
     if (n > engine.meta.maxPlayers) throw new GameError(`${engine.meta.name}最多 ${engine.meta.maxPlayers} 人`);
     room.game = { engine, state: engine.setup(room.players.map(({ id, name, connected }) => ({ id, name, connected }))) };
+    room.gameNo++;
     this.onChange(room);
   }
 
@@ -185,6 +189,7 @@ export class RoomManager {
       hostId: room.hostId,
       players: room.players.map(({ id, name, connected }) => ({ id, name, connected })),
       selectedGame: room.selectedGame,
+      gameNo: room.gameNo,
       game: room.game ? room.game.engine.viewFor(room.game.state, playerId) : null,
     };
   }

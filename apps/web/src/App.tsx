@@ -203,15 +203,18 @@ function RoomScreen({ room, me, actions }: GameProps) {
           {offline.length > 0 && inGame && (
             <p className="offline-banner">⚠️ {offline.map((p) => p.name).join("、")} 掉线了，等 Ta 回来…</p>
           )}
-          {room.game.gameId === "numberBomb" && <NumberBomb room={room} me={me} actions={actions} />}
-          {room.game.gameId === "undercover" && (
-            <>
-              <PlayerList room={room} me={me} />
-              <Undercover room={room} me={me} actions={actions} />
-            </>
-          )}
-          {room.game.gameId === "bombCat" && <BombCat room={room} me={me} actions={actions} />}
-          {room.game.gameId === "liarsBar" && <LiarsBar room={room} me={me} actions={actions} />}
+          {/* key 随局数变化：再来一局时整个游戏界面重新挂载，事件计数、彩带、定时器都从头开始 */}
+          <div key={room.gameNo} className="game-slot">
+            {room.game.gameId === "numberBomb" && <NumberBomb room={room} me={me} actions={actions} />}
+            {room.game.gameId === "undercover" && (
+              <>
+                <PlayerList room={room} me={me} />
+                <Undercover room={room} me={me} actions={actions} />
+              </>
+            )}
+            {room.game.gameId === "bombCat" && <BombCat room={room} me={me} actions={actions} />}
+            {room.game.gameId === "liarsBar" && <LiarsBar room={room} me={me} actions={actions} />}
+          </div>
 
           {room.game.phase === "ended" ? (
             isHost ? (
