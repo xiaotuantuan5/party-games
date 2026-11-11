@@ -154,6 +154,14 @@ export const sfx = {
     tone(600 + urgency * 500, 0.12, { type: "triangle", gain: 0.16 });
     tone(900 + urgency * 700, 0.22, { type: "triangle", gain: 0.16, delay: 0.1 });
   },
+  /** 选中一个数字格子：啵 */
+  pick() {
+    tone(500, 0.08, { type: "sine", slideTo: 900, gain: 0.18 });
+  },
+  /** 一批格子被排除：哗啦 */
+  sweep() {
+    for (let i = 0; i < 6; i++) noise(0.05, { filter: "bandpass", from: 1800 + i * 300, to: 1200, gain: 0.08, delay: i * 0.04 });
+  },
   /** 输了：下行的“哇哇哇” */
   lose() {
     [392, 370, 349].forEach((f, i) => tone(f, 0.28, { type: "sawtooth", gain: 0.06, delay: 0.9 + i * 0.3 }));

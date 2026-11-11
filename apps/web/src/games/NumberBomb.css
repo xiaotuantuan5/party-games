@@ -13,19 +13,18 @@
   align-items: center;
 }
 
-/* ---------- 舞台：炸弹 + 范围 ---------- */
+/* ---------- 舞台：炸弹 + 范围（横向，给格子留出空间） ---------- */
 .nb-stage {
-  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 18px 12px 14px;
+  justify-content: center;
+  gap: 18px;
+  padding: 14px 16px;
   border-radius: 14px;
   color: #fff;
   /* 越紧张背景越红 */
   background: radial-gradient(
-    circle at 50% 35%,
+    circle at 30% 40%,
     hsl(calc(250 - 250 * var(--urgency)) 60% 45%),
     hsl(calc(250 - 250 * var(--urgency)) 55% 22%)
   );
@@ -35,7 +34,7 @@
 
 .nb-bomb {
   position: relative;
-  font-size: 64px;
+  font-size: 52px;
   line-height: 1;
   animation: nb-beat var(--beat) ease-in-out infinite;
   filter: drop-shadow(0 0 calc(4px + 18px * var(--urgency)) rgba(255, 80, 40, 0.9));
@@ -43,7 +42,7 @@
 
 .nb-bomb.gone {
   animation: none;
-  opacity: 0.25;
+  opacity: 0.3;
   filter: grayscale(1);
 }
 
@@ -51,7 +50,7 @@
   position: absolute;
   top: -10px;
   right: -8px;
-  font-size: 22px;
+  font-size: 18px;
   animation: nb-spark 0.25s steps(2) infinite;
 }
 
@@ -59,10 +58,16 @@
   display: none;
 }
 
+.nb-stage-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .nb-range {
-  font-size: 44px;
+  font-size: 36px;
   font-weight: 800;
-  letter-spacing: 1px;
+  line-height: 1.1;
   text-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
 }
 
@@ -72,82 +77,107 @@
 
 .nb-tilde {
   opacity: 0.6;
-  margin: 0 4px;
+  margin: 0 2px;
 }
 
 .nb-odds {
-  font-size: 13px;
+  font-size: 12px;
   opacity: 0.85;
 }
 
 .nb-reveal {
-  text-align: center;
+  font-size: 18px;
   animation: nb-reveal 0.7s 0.6s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
 }
 
-.nb-reveal-label {
-  font-size: 14px;
-  opacity: 0.85;
-}
-
 .nb-reveal-number {
-  font-size: 72px;
+  margin-left: 6px;
+  font-size: 52px;
   font-weight: 900;
   color: #ffd803;
   text-shadow: 0 0 20px rgba(255, 120, 0, 0.9);
+  vertical-align: middle;
 }
 
-/* ---------- 数轴 ---------- */
-.nb-track {
-  position: relative;
-  height: 18px;
-  margin: 4px 0 14px;
-  border-radius: 9px;
-  background: repeating-linear-gradient(45deg, #e6e6e6 0 6px, #d6d6d6 6px 12px);
+/* ---------- 数字格子 ---------- */
+.nb-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
 }
 
-.nb-safe {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-radius: 9px;
-  background: linear-gradient(90deg, #ffd803, hsl(calc(40 - 40 * var(--urgency)) 95% 55%));
-  box-shadow: 0 0 calc(4px + 10px * var(--urgency)) rgba(255, 90, 40, 0.7);
+.nb-tile {
+  aspect-ratio: 1;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #5a3c00;
+  background: hsl(calc(48 - 40 * var(--urgency)) 100% calc(62% - 6% * var(--urgency)));
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.12);
   transition:
-    left 0.6s cubic-bezier(0.2, 0.8, 0.3, 1),
-    width 0.6s cubic-bezier(0.2, 0.8, 0.3, 1);
+    transform 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.3),
+    opacity 0.35s ease,
+    background 0.35s ease,
+    color 0.35s ease;
+  transition-delay: var(--d, 0ms);
 }
 
-.nb-mark {
-  position: absolute;
-  top: -3px;
-  width: 3px;
-  height: 24px;
-  margin-left: -1.5px;
-  border-radius: 2px;
-  background: #555;
-  animation: nb-drop 0.4s ease-out both;
+.nb-tile:disabled {
+  opacity: 1;
+  cursor: default;
 }
 
-.nb-mark.boom {
-  width: 6px;
-  margin-left: -3px;
+/* 轮到自己时，可选格子轻轻呼吸 */
+.nb-grid.active .nb-tile.in {
+  cursor: pointer;
+  animation: nb-tile-breathe 1.6s ease-in-out infinite;
+}
+
+.nb-grid.active .nb-tile.in:hover {
+  transform: scale(1.12);
+}
+
+/* 被排除：翻转到侧面再翻回来变成灰色，--d 控制从猜的数向外扩散的延迟 */
+.nb-tile.out {
+  color: #b5b5b5;
+  background: #eeeeee;
+  box-shadow: none;
+  transform: scale(0.82);
+  opacity: 0.55;
+  animation: nb-flip-out 0.5s var(--d, 0ms) ease both;
+}
+
+.nb-tile.guessed {
+  color: #666;
+  background: #d9d9d9;
+  opacity: 0.9;
+  transform: scale(0.9);
+}
+
+.nb-tile.last {
+  outline: 3px solid #7f5af0;
+  outline-offset: 1px;
+}
+
+.nb-tile.selected,
+.nb-grid.active .nb-tile.selected:hover {
+  z-index: 1;
+  color: #fff;
   background: #e53170;
+  transform: scale(1.22);
+  box-shadow: 0 6px 14px rgba(229, 49, 112, 0.55);
+  animation: nb-selected 0.6s ease-in-out infinite alternate;
+  transition-delay: 0ms;
 }
 
-.nb-track-label {
-  position: absolute;
-  top: 20px;
-  font-size: 11px;
-  color: #999;
-}
-
-.nb-track-label.left {
-  left: 0;
-}
-
-.nb-track-label.right {
-  right: 0;
+.nb-tile.bomb {
+  z-index: 1;
+  font-size: 20px;
+  background: #e53170;
+  transform: scale(1.35);
+  animation: nb-bomb-tile 0.6s 0.2s cubic-bezier(0.2, 0.8, 0.3, 1.6) both;
 }
 
 /* ---------- 玩家 ---------- */
@@ -182,37 +212,31 @@
   font-weight: bold;
 }
 
-/* ---------- 输入 ---------- */
-.nb-input {
+/* ---------- 操作 ---------- */
+.nb-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .nb-turn {
   margin: 0;
   font-weight: bold;
   color: #ff8906;
-  animation: nb-throb 1s ease-in-out infinite;
-}
-
-.nb-slider {
-  width: 100%;
-  padding: 0;
-  border: none;
-  accent-color: #ff8906;
-}
-
-.nb-input input[type="number"] {
   text-align: center;
-  font-size: 22px;
-  font-weight: bold;
+}
+
+.nb-dice {
+  white-space: nowrap;
 }
 
 .nb-go {
+  flex: 1;
   background: #e53170;
   font-weight: bold;
-  white-space: nowrap;
+}
+
+.nb-go:not(:disabled) {
   animation: nb-glow 1.4s ease-in-out infinite;
 }
 
@@ -221,7 +245,8 @@
 }
 
 .nb-result {
-  font-size: 22px;
+  font-size: 18px;
+  font-weight: bold;
   animation: nb-reveal 0.6s 1s both;
 }
 
@@ -284,10 +309,38 @@
   }
 }
 
-@keyframes nb-drop {
-  from {
-    transform: translateY(-14px);
-    opacity: 0;
+@keyframes nb-flip-out {
+  0% {
+    transform: none;
+    opacity: 1;
+  }
+  50% {
+    transform: rotateX(90deg) scale(0.9);
+  }
+  100% {
+    transform: scale(0.82);
+    opacity: 0.55;
+  }
+}
+
+@keyframes nb-tile-breathe {
+  50% {
+    filter: brightness(1.08);
+  }
+}
+
+@keyframes nb-selected {
+  to {
+    transform: scale(1.3);
+  }
+}
+
+@keyframes nb-bomb-tile {
+  0% {
+    transform: scale(0.5) rotate(-30deg);
+  }
+  60% {
+    transform: scale(1.7) rotate(10deg);
   }
 }
 
@@ -301,12 +354,6 @@
 @keyframes nb-chip {
   50% {
     box-shadow: 0 0 0 4px rgba(255, 137, 6, 0.25);
-  }
-}
-
-@keyframes nb-throb {
-  50% {
-    opacity: 0.6;
   }
 }
 

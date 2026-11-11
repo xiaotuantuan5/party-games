@@ -7,7 +7,7 @@ import "./NumberBomb.css";
 
 const MIN = 1;
 const MAX = 100;
-const TOTAL = MAX - MIN + 1;
+const NUMBERS = Array.from({ length: MAX - MIN + 1 }, (_, i) => MIN + i);
 const SURVIVOR_CONFETTI = ["🎉", "😅", "✨", "🎊"];
 
 /** 0 = 很安全，1 = 只剩最后一个数 */
@@ -64,6 +64,7 @@ function useNumberBombEffects(g: NumberBombView, me: string, name: (id?: string 
       } else {
         const remaining = g.high - g.low - 1;
         sfx.safe(urgencyOf(remaining));
+        sfx.sweep();
         setRangeBump((n) => n + 1);
         show({
           kind: "toast",
@@ -96,13 +97,27 @@ export function NumberBomb({ room, me, actions }: GameProps) {
   const lo = g.low + 1;
   const hi = g.high - 1;
   const remaining = hi - lo + 1;
-  const urgency = g.phase === "playing" ? urgencyOf(remaining) : 0;
+  const ended = g.phase === "ended";
+  const urgency = ended ? 0 : urgencyOf(remaining);
   const myTurn = g.phase === "playing" && g.currentPlayerId === me;
+  const lastGuess = g.history.at(-1)?.guess ?? null;
+  const guessed = new Set(g.history.map((h) => h.guess));
 
-  const mid = Math.floor((lo + hi) / 2);
-  const [value, setValue] = useState(String(mid));
-  // 范围变了就把输入重置到新范围的中间
-  useEffect(() => setValue(String(mid)), [lo, hi, mid]);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [rolling, setRolling] = useState(false);
+  const rollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 范围变化或回合交接时清掉选择
+  useEffect(() => {
+    setSelected(null);
+  }, [lo, hi, myTurn]);
+
+  useEffect(
+    () => () => {
+      if (rollTimer.current) clearTimeout(rollTimer.current);
+    },
+    [],
+  );
 
   // 轮到自己时滴答作响，范围越小越快
   useEffect(() => {
@@ -112,14 +127,42 @@ export function NumberBomb({ room, me, actions }: GameProps) {
     return () => clearInterval(t);
   }, [myTurn, urgency]);
 
-  const num = Number(value);
-  const valid = Number.isInteger(num) && num >= lo && num <= hi;
-  const submit = () => {
-    if (valid) run(actions.act({ gameId: "numberBomb", type: "guess", value: num }));
+  const confirm = (n: number) => run(actions.act({ gameId: "numberBomb", type: "guess", value: n }));
+
+  const tap = (n: number) => {
+    if (!myTurn || rolling) return;
+    if (selected === n) {
+      confirm(n);
+      return;
+    }
+    sfx.pick();
+    setSelected(n);
   };
 
-  const pct = (n: number) => `${(n / TOTAL) * 100}%`;
-  const ended = g.phase === "ended";
+  /** 高亮在可选数字之间乱跳、逐渐变慢，最后停在一个数上（只选中，不自动提交） */
+  const roll = () => {
+    if (!myTurn || rolling) return;
+    const candidates = NUMBERS.filter((n) => n >= lo && n <= hi);
+    let steps = Math.min(16, 6 + candidates.length);
+    let delay = 45;
+    let prev: number | null = null;
+    setRolling(true);
+    const hop = () => {
+      let n = candidates[Math.floor(Math.random() * candidates.length)]!;
+      if (n === prev && candidates.length > 1) n = candidates[(candidates.indexOf(n) + 1) % candidates.length]!;
+      prev = n;
+      setSelected(n);
+      sfx.tick(urgency);
+      if (--steps > 0) {
+        delay *= 1.18;
+        rollTimer.current = setTimeout(hop, delay);
+      } else {
+        sfx.pick();
+        setRolling(false);
+      }
+    };
+    hop();
+  };
 
   return (
     <>
@@ -141,33 +184,18 @@ export function NumberBomb({ room, me, actions }: GameProps) {
           </div>
           {ended ? (
             <div className="nb-reveal">
-              <div className="nb-reveal-label">炸弹是</div>
-              <div className="nb-reveal-number">{g.bomb}</div>
+              炸弹是 <span className="nb-reveal-number">{g.bomb}</span>
             </div>
           ) : (
-            <div key={rangeBump} className={`nb-range ${rangeBump ? "bump" : ""}`}>
-              {lo} <span className="nb-tilde">~</span> {hi}
+            <div className="nb-stage-text">
+              <div key={rangeBump} className={`nb-range ${rangeBump ? "bump" : ""}`}>
+                {lo} <span className="nb-tilde">~</span> {hi}
+              </div>
+              <div className="nb-odds">
+                {remaining === 1 ? "只剩最后一个数了……" : `还剩 ${remaining} 个数，猜中概率 1/${remaining}`}
+              </div>
             </div>
           )}
-          {!ended && (
-            <div className="nb-odds">
-              {remaining === 1 ? "只剩最后一个数了……" : `还剩 ${remaining} 个数，随便猜中炸弹的概率 1/${remaining}`}
-            </div>
-          )}
-        </div>
-
-        {/* 1~100 数轴：灰色是已排除的区间，亮色是还可能藏着炸弹的区间 */}
-        <div className="nb-track" aria-hidden>
-          <div className="nb-safe" style={{ left: pct(lo - MIN), width: pct(remaining) }} />
-          {g.history.map((h, i) => (
-            <span
-              key={i}
-              className={`nb-mark ${directionOf(g, h.guess)}`}
-              style={{ left: `calc(${pct(h.guess - MIN)} + ${50 / TOTAL}%)` }}
-            />
-          ))}
-          <span className="nb-track-label left">{MIN}</span>
-          <span className="nb-track-label right">{MAX}</span>
         </div>
 
         <ul className="nb-players">
@@ -184,45 +212,63 @@ export function NumberBomb({ room, me, actions }: GameProps) {
           })}
         </ul>
 
+        {/* 1~100 数字格子：点一下选中，再点一下（或按按钮）确认 */}
+        <div className={`nb-grid ${myTurn ? "active" : ""}`}>
+          {NUMBERS.map((n) => {
+            const isBomb = ended && n === g.bomb;
+            const out = !isBomb && (n < lo || n > hi);
+            const cls = [
+              "nb-tile",
+              out ? "out" : "in",
+              guessed.has(n) ? "guessed" : "",
+              n === lastGuess && !isBomb ? "last" : "",
+              n === selected ? "selected" : "",
+              isBomb ? "bomb" : "",
+            ].join(" ");
+            // 被排除的格子从刚猜的数开始，按距离依次翻走
+            const delay = out && lastGuess !== null ? Math.min(450, Math.abs(n - lastGuess) * 14) : 0;
+            return (
+              <button
+                key={n}
+                type="button"
+                className={cls}
+                style={{ "--d": `${delay}ms` } as CSSProperties}
+                disabled={!myTurn || out || rolling}
+                aria-label={`${n}`}
+                aria-pressed={n === selected}
+                onClick={() => tap(n)}
+              >
+                {isBomb ? "💥" : n}
+              </button>
+            );
+          })}
+        </div>
+
         {ended ? (
           <p className="big nb-result">
             {g.loserId === me ? "😭 你踩中了炸弹" : `😅 ${name(g.loserId)} 踩中了炸弹，其他人安全！`}
           </p>
         ) : myTurn ? (
-          <div className="nb-input">
-            <p className="nb-turn">轮到你了！选一个数</p>
-            <input
-              className="nb-slider"
-              type="range"
-              min={lo}
-              max={hi}
-              value={valid ? num : mid}
-              onChange={(e) => setValue(e.target.value)}
-              disabled={remaining === 1}
-            />
+          <div className="nb-actions">
+            <p className="nb-turn">
+              {rolling ? "🎲 命运转盘转起来了…" : selected === null ? "轮到你了！点一个数字" : `选中了 ${selected}，再点一次或按按钮确认`}
+            </p>
             <div className="row">
-              <button type="button" className="secondary" onClick={() => setValue(String(Math.max(lo, num - 1)))}>
-                −
+              <button type="button" className="secondary nb-dice" disabled={rolling} onClick={roll}>
+                🎲 随机
               </button>
-              <input
-                type="number"
-                inputMode="numeric"
-                value={value}
-                min={lo}
-                max={hi}
-                onChange={(e) => setValue(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submit()}
-              />
-              <button type="button" className="secondary" onClick={() => setValue(String(Math.min(hi, num + 1)))}>
-                +
-              </button>
-              <button type="button" className="nb-go" disabled={!valid} onClick={submit}>
-                就它了！
+              <button
+                type="button"
+                className="nb-go"
+                disabled={selected === null || rolling}
+                onClick={() => selected !== null && confirm(selected)}
+              >
+                {selected === null ? "先选一个数" : `就它了！${selected}`}
               </button>
             </div>
           </div>
         ) : (
-          <p className="hint nb-wait">等待 {name(g.currentPlayerId)} 猜数字…</p>
+          <p className="hint nb-wait">等待 {name(g.currentPlayerId)} 选数字…</p>
         )}
 
         {error && <p className="error">{error}</p>}
