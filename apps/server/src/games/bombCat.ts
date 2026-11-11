@@ -27,6 +27,7 @@ interface State {
   /** 玩家用“预言”看到的牌，回合交给别人时清除 */
   futures: Record<string, BombCatCard[]>;
   log: BombCatLogEntry[];
+  seq: number;
   winnerId: string | null;
 }
 
@@ -46,8 +47,8 @@ const ACTION_CARDS: [BombCatCardType, number][] = [
 const label = (t: BombCatCardType) => `${BOMB_CAT_CARDS[t].emoji}${BOMB_CAT_CARDS[t].name}`;
 const isCat = (t: BombCatCardType) => (BOMB_CAT_CAT_TYPES as BombCatCardType[]).includes(t);
 
-function log(s: State, entry: BombCatLogEntry): void {
-  s.log.push(entry);
+function log(s: State, entry: Omit<BombCatLogEntry, "seq">): void {
+  s.log.push({ ...entry, seq: ++s.seq });
   if (s.log.length > LOG_LIMIT) s.log.splice(0, s.log.length - LOG_LIMIT);
 }
 
@@ -122,7 +123,13 @@ function play(s: State, playerId: string, cardIds: unknown, targetId: unknown): 
     const targetHand = s.hands[target]!;
     const [stolen] = targetHand.splice(randomInt(0, targetHand.length - 1), 1);
     s.hands[playerId]!.push(stolen!);
-    log(s, { playerId, targetId: target, text: `打出一对${label(type)}，从 {target} 手里抽走了一张牌` });
+    log(s, {
+      kind: "pair",
+      card: type,
+      playerId,
+      targetId: target,
+      text: `打出一对${label(type)}，从 {target} 手里抽走了一张牌`,
+    });
     return;
   }
 
@@ -132,30 +139,31 @@ function play(s: State, playerId: string, cardIds: unknown, targetId: unknown): 
   // 先校验目标，再弃牌
   const target = type === "favor" ? requireTarget(s, playerId, targetId) : null;
   s.discard.push(...takeFromHand(s, playerId, cardIds));
+  const played = { kind: "play" as const, card: type, playerId };
 
   switch (type) {
     case "attack": {
       const next = nextAlive(s, playerId);
-      log(s, { playerId, targetId: next, text: `打出${label(type)}，{target} 要连续进行 2 个回合` });
+      log(s, { ...played, targetId: next, text: `打出${label(type)}，{target} 要连续进行 2 个回合` });
       passTurn(s, 2);
       return;
     }
     case "skip":
-      log(s, { playerId, text: `打出${label(type)}` });
+      log(s, { ...played, text: `打出${label(type)}` });
       endOneTurn(s);
       return;
     case "shuffle":
       s.deck = shuffle(s.deck);
       s.futures = {};
-      log(s, { playerId, text: `打出${label(type)}，牌堆被重新洗乱` });
+      log(s, { ...played, text: `打出${label(type)}，牌堆被重新洗乱` });
       return;
     case "seeFuture":
       s.futures[playerId] = s.deck.slice(0, 3);
-      log(s, { playerId, text: `打出${label(type)}，偷看了牌堆顶的牌` });
+      log(s, { ...played, text: `打出${label(type)}，偷看了牌堆顶的牌` });
       return;
     case "favor":
       s.pending = { type: "favor", fromId: playerId, toId: target! };
-      log(s, { playerId, targetId: target!, text: `打出${label(type)}，向 {target} 要一张牌` });
+      log(s, { ...played, targetId: target!, text: `打出${label(type)}，向 {target} 要一张牌` });
       return;
     default:
       throw new GameError("这张牌不能打出");
@@ -170,7 +178,7 @@ function draw(s: State, playerId: string): void {
 
   if (card.type !== "bomb") {
     s.hands[playerId]!.push(card);
-    log(s, { playerId, text: "摸了一张牌" });
+    log(s, { kind: "draw", playerId, text: "摸了一张牌" });
     endOneTurn(s);
     return;
   }
@@ -180,12 +188,12 @@ function draw(s: State, playerId: string): void {
   if (defuseIdx >= 0) {
     s.discard.push(...hand.splice(defuseIdx, 1));
     s.pending = { type: "defuse", playerId, bomb: card };
-    log(s, { playerId, text: `摸到了${label("bomb")}，用${label("defuse")}化解了！` });
+    log(s, { kind: "defuse", playerId, text: `摸到了${label("bomb")}，用${label("defuse")}化解了！` });
     return;
   }
 
   s.discard.push(card);
-  log(s, { playerId, text: `摸到了${label("bomb")}，💥 爆炸出局` });
+  log(s, { kind: "explode", playerId, text: `摸到了${label("bomb")}，💥 爆炸出局` });
   eliminate(s, playerId);
 }
 
@@ -223,6 +231,7 @@ export const bombCat: GameEngine<State, BombCatAction, BombCatView> = {
       pending: null,
       futures: {},
       log: [],
+      seq: 0,
       winnerId: null,
     };
   },
@@ -237,7 +246,7 @@ export const bombCat: GameEngine<State, BombCatAction, BombCatView> = {
       const [card] = takeFromHand(s, playerId, [action.cardId]);
       s.hands[p.fromId]!.push(card!);
       s.pending = null;
-      log(s, { playerId, targetId: p.fromId, text: "给了 {target} 一张牌" });
+      log(s, { kind: "give", playerId, targetId: p.fromId, text: "给了 {target} 一张牌" });
       return;
     }
 
@@ -249,7 +258,7 @@ export const bombCat: GameEngine<State, BombCatAction, BombCatView> = {
       s.pending = null;
       // 牌堆顺序变了，之前的预言不再准确
       s.futures = {};
-      log(s, { playerId, text: `把${label("bomb")}悄悄放回了牌堆` });
+      log(s, { kind: "placeBomb", playerId, text: `把${label("bomb")}悄悄放回了牌堆` });
       endOneTurn(s);
       return;
     }
@@ -274,6 +283,7 @@ export const bombCat: GameEngine<State, BombCatAction, BombCatView> = {
       myHand: s.hands[playerId] ?? [],
       handCounts: Object.fromEntries(s.seats.map((id) => [id, s.hands[id]?.length ?? 0])),
       deckCount: s.deck.length,
+      bombCount: s.deck.filter((c) => c.type === "bomb").length,
       discardTop: s.discard.at(-1)?.type ?? null,
       // 不把待放回的炸弹牌对象发给客户端
       pending: !pending
@@ -295,7 +305,7 @@ export const bombCat: GameEngine<State, BombCatAction, BombCatView> = {
       s.discard.push(p.bomb);
       s.pending = null;
     }
-    log(s, { playerId, text: "离开了游戏" });
+    log(s, { kind: "leave", playerId, text: "离开了游戏" });
     eliminate(s, playerId);
     return true;
   },

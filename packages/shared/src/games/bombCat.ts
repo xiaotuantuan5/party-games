@@ -32,8 +32,15 @@ export const BOMB_CAT_CARDS: Record<BombCatCardType, { name: string; emoji: stri
   melonCat: { name: "西瓜猫", emoji: "🍉", description: "两张相同的猫咪牌一起打出，可以随机抽走一位玩家的一张手牌。" },
 };
 
+export type BombCatEventKind = "draw" | "play" | "pair" | "give" | "defuse" | "explode" | "placeBomb" | "leave";
+
 /** text 中的 {target} 由前端替换成 targetId 对应的昵称 */
 export interface BombCatLogEntry {
+  /** 单局内递增，前端据此识别新事件并播放动画和音效 */
+  seq: number;
+  kind: BombCatEventKind;
+  /** play / pair 时打出的牌 */
+  card?: BombCatCardType;
   playerId: string;
   targetId?: string;
   text: string;
@@ -57,6 +64,8 @@ export interface BombCatView {
   myHand: BombCatCard[];
   handCounts: Record<string, number>;
   deckCount: number;
+  /** 牌堆里还剩几只炸弹猫。实体游戏里大家也能数出来，所以公开。 */
+  bombCount: number;
   discardTop: BombCatCardType | null;
   pending: BombCatPending | null;
   /** 自己用“预言”看到的牌堆顶（从顶部开始） */

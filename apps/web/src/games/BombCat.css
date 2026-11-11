@@ -1,0 +1,626 @@
+/* ---------- 布局 ---------- */
+.bc-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bc-sound {
+  background: #f2f0ff;
+  padding: 6px 10px;
+  font-size: 18px;
+}
+
+/* ---------- 牌桌 ---------- */
+.bc-table {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  padding: 16px 12px 10px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 30%, #3a7d5c, #1f4d38);
+  color: #fff;
+}
+
+.bc-pile-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.bc-pile-label {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.bc-pile {
+  width: 72px;
+  height: 100px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.bc-deck {
+  background: repeating-linear-gradient(45deg, #7f5af0 0 8px, #6a48d7 8px 16px);
+  border: 3px solid #fff;
+  box-shadow:
+    3px 3px 0 #6a48d7,
+    4px 4px 0 #fff,
+    7px 7px 0 #6a48d7,
+    8px 8px 0 #fff;
+}
+
+.bc-deck.bump {
+  animation: bc-bump 0.35s ease;
+}
+
+.bc-pile-count {
+  font-size: 24px;
+  font-weight: bold;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
+}
+
+.bc-discard {
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+}
+
+.bc-discard.has {
+  border: 3px solid #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+}
+
+.bc-discard.pop {
+  animation: bc-pop 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.4);
+}
+
+/* ---------- 危险度 ---------- */
+.bc-danger {
+  font-size: 13px;
+  color: #555;
+}
+
+.bc-danger-bar {
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 4px;
+  background: #eee;
+  overflow: hidden;
+}
+
+.bc-danger-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: #2cb67d;
+  transition:
+    width 0.5s ease,
+    background 0.5s ease;
+}
+
+.bc-danger.mid .bc-danger-fill {
+  background: #ff8906;
+}
+
+.bc-danger.high {
+  color: #e53170;
+  font-weight: bold;
+}
+
+.bc-danger.high .bc-danger-fill {
+  background: #e53170;
+  animation: bc-throb 0.8s ease-in-out infinite;
+}
+
+/* ---------- 玩家 ---------- */
+.bc-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.bc-players li {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f7f7f7;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.bc-players li.current {
+  border-color: #ff8906;
+  background: #fff3e6;
+  animation: bc-chip 1.2s ease-in-out infinite;
+}
+
+.bc-players li.out {
+  opacity: 0.45;
+  filter: grayscale(1);
+  text-decoration: line-through;
+}
+
+.bc-players li.winner {
+  border-color: #ffd803;
+  background: #fff8cc;
+}
+
+.bc-status {
+  font-weight: 500;
+}
+
+.bc-win-text {
+  animation: bc-rise 0.6s 0.8s both;
+}
+
+/* ---------- 卡牌 ---------- */
+.bc-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.bc-card {
+  width: 64px;
+  height: 88px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  color: #fff;
+  font-size: 12px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.bc-card-emoji {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.bc-card-name {
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.bc-card:not(:disabled):hover {
+  transform: translateY(-4px);
+}
+
+.bc-card:not(:disabled):active {
+  transform: scale(0.95);
+}
+
+.bc-card.selected,
+.bc-card.selected:hover {
+  transform: translateY(-12px);
+  box-shadow:
+    0 0 0 3px #ffd803,
+    0 10px 14px rgba(0, 0, 0, 0.25);
+}
+
+.bc-card:disabled {
+  opacity: 1;
+  cursor: default;
+  filter: saturate(0.7) brightness(0.95);
+}
+
+.bc-card.giveable {
+  animation: bc-wiggle 0.8s ease-in-out infinite;
+}
+
+.bc-card.deal {
+  animation: bc-deal 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+}
+
+.bc-card.mini {
+  width: auto;
+  height: auto;
+  flex-direction: row;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.bc-card.mini .bc-card-emoji {
+  font-size: 18px;
+}
+
+.t-bomb {
+  background: #2b2c34;
+  border-color: #e53170;
+}
+.t-defuse {
+  background: #2cb67d;
+}
+.t-attack {
+  background: #e53170;
+}
+.t-skip {
+  background: #3da9fc;
+}
+.t-favor {
+  background: #ff8906;
+}
+.t-shuffle {
+  background: #7f5af0;
+}
+.t-seeFuture {
+  background: #6246ea;
+}
+.t-tacoCat {
+  background: #f4a259;
+}
+.t-beardCat {
+  background: #8d6e63;
+}
+.t-rainbowCat {
+  background: linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff);
+}
+.t-potatoCat {
+  background: #c9a227;
+}
+.t-melonCat {
+  background: #43aa8b;
+}
+
+/* ---------- 预言 ---------- */
+.bc-future {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f2f0ff, #e6e0ff);
+  font-size: 14px;
+}
+
+.bc-future-cards {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  perspective: 400px;
+}
+
+.bc-flip {
+  animation: bc-flip 0.5s ease both;
+}
+
+.bc-warn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #ffe3ea;
+  color: #e53170;
+  font-weight: bold;
+  animation: bc-throb 0.8s ease-in-out infinite;
+}
+
+/* ---------- 操作 ---------- */
+.bc-actions,
+.bc-place {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bc-actions select {
+  font-size: 16px;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.bc-draw {
+  background: #ff8906;
+  font-weight: bold;
+}
+
+.bc-draw.ready {
+  animation: bc-glow 1.4s ease-in-out infinite;
+}
+
+.bc-draw.danger {
+  background: #e53170;
+}
+
+.history li.bc-log-explode {
+  color: #e53170;
+  font-weight: bold;
+}
+
+.history li.bc-log-defuse {
+  color: #2cb67d;
+  font-weight: bold;
+}
+
+/* ---------- 全屏特效 ---------- */
+.bc-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.bc-fx-explode {
+  background: radial-gradient(
+    circle,
+    rgba(255, 210, 0, 0.95) 0%,
+    rgba(255, 90, 0, 0.85) 35%,
+    rgba(120, 0, 0, 0.6) 70%,
+    transparent 100%
+  );
+  animation: bc-flash 2.1s ease-out forwards;
+}
+
+.bc-fx-explode .bc-fx-icon {
+  font-size: 120px;
+  animation: bc-boom 0.9s cubic-bezier(0.2, 0.8, 0.3, 1.3) both;
+}
+
+.bc-fx-defuse {
+  background: radial-gradient(circle, rgba(44, 182, 125, 0.55), transparent 70%);
+  animation: bc-fade 2.1s ease-out forwards;
+}
+
+.bc-fx-defuse .bc-fx-icon {
+  font-size: 96px;
+  animation: bc-spin 0.8s ease-out both;
+}
+
+.bc-fx-text {
+  margin-top: 12px;
+  padding: 0 16px;
+  font-size: 30px;
+  font-weight: bold;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  animation: bc-rise 0.5s 0.2s both;
+}
+
+.bc-shard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: 32px;
+  animation: bc-shard 1s ease-out both;
+}
+
+.bc-fx-toast {
+  justify-content: flex-start;
+  padding-top: 72px;
+}
+
+.bc-toast {
+  max-width: 90vw;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(22, 22, 26, 0.9);
+  color: #fff;
+  font-size: 15px;
+  animation: bc-toast 1.8s ease forwards;
+}
+
+.bc-confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bc-confetti span {
+  position: absolute;
+  top: -40px;
+  font-size: 24px;
+  animation-name: bc-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+.bc-shake {
+  animation: bc-shake 0.5s;
+}
+
+/* ---------- 关键帧 ---------- */
+@keyframes bc-bump {
+  40% {
+    transform: translateY(-6px) scale(1.06);
+  }
+}
+
+@keyframes bc-pop {
+  from {
+    transform: translateY(-70px) rotate(-25deg) scale(0.6);
+    opacity: 0;
+  }
+}
+
+@keyframes bc-deal {
+  from {
+    transform: translateY(-140px) rotate(-15deg) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes bc-flip {
+  from {
+    transform: rotateY(90deg);
+    opacity: 0;
+  }
+}
+
+@keyframes bc-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 137, 6, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(255, 137, 6, 0);
+  }
+}
+
+@keyframes bc-chip {
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 137, 6, 0.25);
+  }
+}
+
+@keyframes bc-wiggle {
+  25% {
+    transform: rotate(-3deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes bc-throb {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes bc-flash {
+  0% {
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes bc-boom {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.7);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes bc-spin {
+  from {
+    transform: rotate(-270deg) scale(0.3);
+  }
+}
+
+@keyframes bc-fade {
+  0% {
+    opacity: 0;
+  }
+  15%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes bc-rise {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}
+
+@keyframes bc-shard {
+  from {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 1;
+  }
+  to {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes bc-toast {
+  0% {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  12%,
+  85% {
+    transform: none;
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes bc-fall {
+  to {
+    transform: translateY(110vh) rotate(var(--rot));
+    opacity: 0.3;
+  }
+}
+
+@keyframes bc-shake {
+  0%,
+  100% {
+    transform: none;
+  }
+  20% {
+    transform: translate(-8px, 4px);
+  }
+  40% {
+    transform: translate(8px, -4px);
+  }
+  60% {
+    transform: translate(-6px, 2px);
+  }
+  80% {
+    transform: translate(6px, -2px);
+  }
+}
+
+/* 系统设置了“减少动态效果”时关闭大幅动画 */
+@media (prefers-reduced-motion: reduce) {
+  .bc-root *,
+  .bc-shake,
+  .bc-fx,
+  .bc-fx * {
+    animation: none !important;
+    transition: none !important;
+  }
+  .bc-confetti,
+  .bc-shard {
+    display: none;
+  }
+}
