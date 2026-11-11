@@ -11,12 +11,6 @@
   align-items: center;
 }
 
-.bc-sound {
-  background: #f2f0ff;
-  padding: 6px 10px;
-  font-size: 18px;
-}
-
 /* ---------- 牌桌 ---------- */
 .bc-table {
   display: flex;
@@ -351,100 +345,7 @@
   font-weight: bold;
 }
 
-/* ---------- 全屏特效 ---------- */
-.bc-fx {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.bc-fx-explode {
-  background: radial-gradient(
-    circle,
-    rgba(255, 210, 0, 0.95) 0%,
-    rgba(255, 90, 0, 0.85) 35%,
-    rgba(120, 0, 0, 0.6) 70%,
-    transparent 100%
-  );
-  animation: bc-flash 2.1s ease-out forwards;
-}
-
-.bc-fx-explode .bc-fx-icon {
-  font-size: 120px;
-  animation: bc-boom 0.9s cubic-bezier(0.2, 0.8, 0.3, 1.3) both;
-}
-
-.bc-fx-defuse {
-  background: radial-gradient(circle, rgba(44, 182, 125, 0.55), transparent 70%);
-  animation: bc-fade 2.1s ease-out forwards;
-}
-
-.bc-fx-defuse .bc-fx-icon {
-  font-size: 96px;
-  animation: bc-spin 0.8s ease-out both;
-}
-
-.bc-fx-text {
-  margin-top: 12px;
-  padding: 0 16px;
-  font-size: 30px;
-  font-weight: bold;
-  color: #fff;
-  text-align: center;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-  animation: bc-rise 0.5s 0.2s both;
-}
-
-.bc-shard {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  font-size: 32px;
-  animation: bc-shard 1s ease-out both;
-}
-
-.bc-fx-toast {
-  justify-content: flex-start;
-  padding-top: 72px;
-}
-
-.bc-toast {
-  max-width: 90vw;
-  padding: 10px 18px;
-  border-radius: 999px;
-  background: rgba(22, 22, 26, 0.9);
-  color: #fff;
-  font-size: 15px;
-  animation: bc-toast 1.8s ease forwards;
-}
-
-.bc-confetti {
-  position: fixed;
-  inset: 0;
-  z-index: 99;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.bc-confetti span {
-  position: absolute;
-  top: -40px;
-  font-size: 24px;
-  animation-name: bc-fall;
-  animation-timing-function: linear;
-  animation-fill-mode: both;
-}
-
-.bc-shake {
-  animation: bc-shake 0.5s;
-}
-
-/* ---------- 关键帧 ---------- */
+/* ---------- 关键帧（全屏特效在 src/fx.css） ---------- */
 @keyframes bc-bump {
   40% {
     transform: translateY(-6px) scale(1.06);
@@ -503,54 +404,6 @@
   }
 }
 
-@keyframes bc-flash {
-  0% {
-    opacity: 0;
-  }
-  6% {
-    opacity: 1;
-  }
-  60% {
-    opacity: 0.85;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes bc-boom {
-  0% {
-    transform: scale(0.2);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.7);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-@keyframes bc-spin {
-  from {
-    transform: rotate(-270deg) scale(0.3);
-  }
-}
-
-@keyframes bc-fade {
-  0% {
-    opacity: 0;
-  }
-  15%,
-  75% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
 @keyframes bc-rise {
   from {
     transform: translateY(20px);
@@ -558,69 +411,10 @@
   }
 }
 
-@keyframes bc-shard {
-  from {
-    transform: translate(-50%, -50%) scale(0.5);
-    opacity: 1;
-  }
-  to {
-    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.4);
-    opacity: 0;
-  }
-}
-
-@keyframes bc-toast {
-  0% {
-    transform: translateY(-30px);
-    opacity: 0;
-  }
-  12%,
-  85% {
-    transform: none;
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes bc-fall {
-  to {
-    transform: translateY(110vh) rotate(var(--rot));
-    opacity: 0.3;
-  }
-}
-
-@keyframes bc-shake {
-  0%,
-  100% {
-    transform: none;
-  }
-  20% {
-    transform: translate(-8px, 4px);
-  }
-  40% {
-    transform: translate(8px, -4px);
-  }
-  60% {
-    transform: translate(-6px, 2px);
-  }
-  80% {
-    transform: translate(6px, -2px);
-  }
-}
-
 /* 系统设置了“减少动态效果”时关闭大幅动画 */
 @media (prefers-reduced-motion: reduce) {
-  .bc-root *,
-  .bc-shake,
-  .bc-fx,
-  .bc-fx * {
+  .bc-root * {
     animation: none !important;
     transition: none !important;
-  }
-  .bc-confetti,
-  .bc-shard {
-    display: none;
   }
 }

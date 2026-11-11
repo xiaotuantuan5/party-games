@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import {
   BOMB_CAT_CARDS,
   BOMB_CAT_CAT_TYPES,
@@ -6,7 +6,8 @@ import {
   type BombCatLogEntry,
   type BombCatView,
 } from "@party/shared";
-import { isMuted, setMuted, sfx, vibrate } from "../sound";
+import { Confetti, FxLayer, SoundToggle, useFx } from "../fx";
+import { sfx, vibrate } from "../sound";
 import { nameOf, useRun, type GameProps } from "../ui";
 import "./BombCat.css";
 
@@ -21,20 +22,14 @@ const CARD_SOUND: Partial<Record<BombCatCardType, () => void>> = {
   favor: sfx.favor,
 };
 
-type Fx = { id: number; kind: "explode" | "defuse" | "toast"; icon: string; text: string };
-
 /** 根据服务端下发的新事件播放音效和特效 */
 function useGameEffects(g: BombCatView, me: string, name: (id?: string | null) => string) {
-  const [fx, setFx] = useState<Fx | null>(null);
-  const [shaking, setShaking] = useState(false);
+  const { fx, show, shaking, shake } = useFx();
   const [deckBump, setDeckBump] = useState(0);
   const [confetti, setConfetti] = useState(false);
   const lastSeq = useRef<number | null>(null);
-  const fxId = useRef(0);
   const prevWinner = useRef<string | null | undefined>(undefined);
   const wasMyTurn = useRef(false);
-
-  const show = (f: Omit<Fx, "id">) => setFx({ ...f, id: ++fxId.current });
 
   const onEvent = (e: BombCatLogEntry) => {
     const who = e.playerId === me ? "你" : name(e.playerId);
@@ -46,7 +41,7 @@ function useGameEffects(g: BombCatView, me: string, name: (id?: string | null) =
         break;
       case "explode":
         sfx.explode();
-        setShaking(true);
+        shake();
         setDeckBump((n) => n + 1);
         show({ kind: "explode", icon: "💥", text: e.playerId === me ? "你爆炸了！" : `${who} 爆炸了！` });
         if (e.playerId === me) vibrate([300, 100, 500]);
@@ -54,7 +49,7 @@ function useGameEffects(g: BombCatView, me: string, name: (id?: string | null) =
       case "defuse":
         sfx.defuse();
         setDeckBump((n) => n + 1);
-        show({ kind: "defuse", icon: "🔧", text: `${who}拆除了炸弹猫！` });
+        show({ kind: "success", icon: "🔧", text: `${who}拆除了炸弹猫！` });
         if (e.playerId === me) vibrate(150);
         break;
       case "placeBomb":
@@ -78,7 +73,7 @@ function useGameEffects(g: BombCatView, me: string, name: (id?: string | null) =
             text: e.targetId === me ? "你被攻击了！要连续进行 2 个回合" : `${who}攻击了${target}`,
           });
           if (e.targetId === me) {
-            setShaking(true);
+            shake();
             vibrate(120);
           }
         } else if (e.card === "shuffle") {
@@ -125,18 +120,6 @@ function useGameEffects(g: BombCatView, me: string, name: (id?: string | null) =
     wasMyTurn.current = isMyTurn;
   }, [isMyTurn]);
 
-  useEffect(() => {
-    if (!shaking) return;
-    const t = setTimeout(() => setShaking(false), 600);
-    return () => clearTimeout(t);
-  }, [shaking]);
-
-  useEffect(() => {
-    if (!fx) return;
-    const t = setTimeout(() => setFx(null), fx.kind === "toast" ? 1800 : 2200);
-    return () => clearTimeout(t);
-  }, [fx]);
-
   return { fx, shaking, deckBump, confetti };
 }
 
@@ -162,78 +145,8 @@ function useFreshCards(hand: { id: number }[]): Map<number, number> {
   return fresh;
 }
 
-function ExplosionShards() {
-  const shards = useMemo(
-    () =>
-      Array.from({ length: 14 }, (_, i) => {
-        const angle = (i / 14) * Math.PI * 2;
-        const dist = 140 + Math.random() * 120;
-        return {
-          char: ["🔥", "💥", "✨", "🐱"][i % 4],
-          style: {
-            "--dx": `${Math.cos(angle) * dist}px`,
-            "--dy": `${Math.sin(angle) * dist}px`,
-            animationDelay: `${Math.random() * 0.1}s`,
-          } as CSSProperties,
-        };
-      }),
-    [],
-  );
-  return (
-    <>
-      {shards.map((s, i) => (
-        <span key={i} className="bc-shard" style={s.style}>
-          {s.char}
-        </span>
-      ))}
-    </>
-  );
-}
-
-function Confetti() {
-  const pieces = useMemo(
-    () =>
-      Array.from({ length: 40 }, (_, i) => ({
-        char: ["🎉", "✨", "🐱", "🎊", "⭐"][i % 5],
-        style: {
-          left: `${Math.random() * 100}%`,
-          animationDelay: `${0.8 + Math.random() * 1}s`,
-          animationDuration: `${2.2 + Math.random() * 1.5}s`,
-          "--rot": `${Math.random() * 720 - 360}deg`,
-        } as CSSProperties,
-      })),
-    [],
-  );
-  return (
-    <div className="bc-confetti">
-      {pieces.map((p, i) => (
-        <span key={i} style={p.style}>
-          {p.char}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function FxLayer({ fx }: { fx: Fx | null }) {
-  if (!fx) return null;
-  if (fx.kind === "toast") {
-    return (
-      <div className="bc-fx bc-fx-toast" key={fx.id}>
-        <div className="bc-toast">
-          {fx.icon} {fx.text}
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className={`bc-fx bc-fx-${fx.kind}`} key={fx.id}>
-      {fx.kind === "explode" && <ExplosionShards />}
-      <div className="bc-fx-icon">{fx.icon}</div>
-      <div className="bc-fx-text">{fx.text}</div>
-    </div>
-  );
-}
+const CAT_SHARDS = ["🔥", "💥", "✨", "🐱"];
+const CAT_CONFETTI = ["🎉", "✨", "🐱", "🎊", "⭐"];
 
 function Card({
   cardType,
@@ -259,7 +172,6 @@ export function BombCat({ room, me, actions }: GameProps) {
   const [selected, setSelected] = useState<number[]>([]);
   const [target, setTarget] = useState("");
   const [position, setPosition] = useState(1);
-  const [muted, setMutedState] = useState(isMuted());
 
   const name = (id?: string | null) => nameOf(room, id);
   const { fx, shaking, deckBump, confetti } = useGameEffects(g, me, name);
@@ -328,22 +240,13 @@ export function BombCat({ room, me, actions }: GameProps) {
 
   return (
     <>
-      <FxLayer fx={fx} />
-      {confetti && <Confetti />}
+      <FxLayer fx={fx} shards={CAT_SHARDS} />
+      {confetti && <Confetti chars={CAT_CONFETTI} />}
 
-      <section className={`bc-root ${shaking ? "bc-shake" : ""}`}>
+      <section className={`bc-root ${shaking ? "fx-shake" : ""}`}>
         <div className="bc-head">
           <h2>🐱 炸弹猫</h2>
-          <button
-            className="bc-sound"
-            title={muted ? "打开音效和震动" : "关闭音效和震动"}
-            onClick={() => {
-              setMuted(!muted);
-              setMutedState(!muted);
-            }}
-          >
-            {muted ? "🔇" : "🔊"}
-          </button>
+          <SoundToggle />
         </div>
 
         <div className="bc-table">
@@ -385,7 +288,7 @@ export function BombCat({ room, me, actions }: GameProps) {
               <li key={id} className={`${out ? "out" : ""} ${current ? "current" : ""} ${id === g.winnerId ? "winner" : ""}`}>
                 {out ? "💥 " : current ? "👉 " : id === g.winnerId ? "🏆 " : ""}
                 {name(id)}
-                {id === me && "（我）"} · 🂠{g.handCounts[id] ?? 0}
+                {id === me && "（我）"} · 🃏{g.handCounts[id] ?? 0}
                 {current && g.turnsLeft > 1 && ` ×${g.turnsLeft}`}
               </li>
             );

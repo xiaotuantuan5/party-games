@@ -1,0 +1,328 @@
+.nb-root {
+  /* --urgency: 0~1，由组件根据剩余数字个数设置；--beat：炸弹跳动周期 */
+  --urgency: 0;
+  --beat: 1.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nb-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ---------- 舞台：炸弹 + 范围 ---------- */
+.nb-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 18px 12px 14px;
+  border-radius: 14px;
+  color: #fff;
+  /* 越紧张背景越红 */
+  background: radial-gradient(
+    circle at 50% 35%,
+    hsl(calc(250 - 250 * var(--urgency)) 60% 45%),
+    hsl(calc(250 - 250 * var(--urgency)) 55% 22%)
+  );
+  transition: background 0.6s ease;
+  overflow: hidden;
+}
+
+.nb-bomb {
+  position: relative;
+  font-size: 64px;
+  line-height: 1;
+  animation: nb-beat var(--beat) ease-in-out infinite;
+  filter: drop-shadow(0 0 calc(4px + 18px * var(--urgency)) rgba(255, 80, 40, 0.9));
+}
+
+.nb-bomb.gone {
+  animation: none;
+  opacity: 0.25;
+  filter: grayscale(1);
+}
+
+.nb-spark {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  font-size: 22px;
+  animation: nb-spark 0.25s steps(2) infinite;
+}
+
+.nb-bomb.gone .nb-spark {
+  display: none;
+}
+
+.nb-range {
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+
+.nb-range.bump {
+  animation: nb-squeeze 0.45s cubic-bezier(0.2, 0.8, 0.3, 1.4);
+}
+
+.nb-tilde {
+  opacity: 0.6;
+  margin: 0 4px;
+}
+
+.nb-odds {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.nb-reveal {
+  text-align: center;
+  animation: nb-reveal 0.7s 0.6s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+
+.nb-reveal-label {
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.nb-reveal-number {
+  font-size: 72px;
+  font-weight: 900;
+  color: #ffd803;
+  text-shadow: 0 0 20px rgba(255, 120, 0, 0.9);
+}
+
+/* ---------- 数轴 ---------- */
+.nb-track {
+  position: relative;
+  height: 18px;
+  margin: 4px 0 14px;
+  border-radius: 9px;
+  background: repeating-linear-gradient(45deg, #e6e6e6 0 6px, #d6d6d6 6px 12px);
+}
+
+.nb-safe {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #ffd803, hsl(calc(40 - 40 * var(--urgency)) 95% 55%));
+  box-shadow: 0 0 calc(4px + 10px * var(--urgency)) rgba(255, 90, 40, 0.7);
+  transition:
+    left 0.6s cubic-bezier(0.2, 0.8, 0.3, 1),
+    width 0.6s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.nb-mark {
+  position: absolute;
+  top: -3px;
+  width: 3px;
+  height: 24px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: #555;
+  animation: nb-drop 0.4s ease-out both;
+}
+
+.nb-mark.boom {
+  width: 6px;
+  margin-left: -3px;
+  background: #e53170;
+}
+
+.nb-track-label {
+  position: absolute;
+  top: 20px;
+  font-size: 11px;
+  color: #999;
+}
+
+.nb-track-label.left {
+  left: 0;
+}
+
+.nb-track-label.right {
+  right: 0;
+}
+
+/* ---------- 玩家 ---------- */
+.nb-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.nb-players li {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f7f7f7;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.nb-players li.current {
+  border-color: #ff8906;
+  background: #fff3e6;
+  animation: nb-chip 1.2s ease-in-out infinite;
+}
+
+.nb-players li.lost {
+  border-color: #e53170;
+  background: #ffe3ea;
+  color: #e53170;
+  font-weight: bold;
+}
+
+/* ---------- 输入 ---------- */
+.nb-input {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nb-turn {
+  margin: 0;
+  font-weight: bold;
+  color: #ff8906;
+  animation: nb-throb 1s ease-in-out infinite;
+}
+
+.nb-slider {
+  width: 100%;
+  padding: 0;
+  border: none;
+  accent-color: #ff8906;
+}
+
+.nb-input input[type="number"] {
+  text-align: center;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.nb-go {
+  background: #e53170;
+  font-weight: bold;
+  white-space: nowrap;
+  animation: nb-glow 1.4s ease-in-out infinite;
+}
+
+.nb-wait {
+  text-align: center;
+}
+
+.nb-result {
+  font-size: 22px;
+  animation: nb-reveal 0.6s 1s both;
+}
+
+/* ---------- 历史 ---------- */
+.nb-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nb-chip {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f2f0ff;
+  font-size: 13px;
+  animation: nb-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+
+.nb-chip.boom {
+  background: #e53170;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* ---------- 关键帧 ---------- */
+@keyframes nb-beat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  15% {
+    transform: scale(calc(1.08 + 0.12 * var(--urgency)));
+  }
+  30% {
+    transform: scale(1);
+  }
+}
+
+@keyframes nb-spark {
+  50% {
+    opacity: 0.3;
+    transform: scale(0.7) rotate(20deg);
+  }
+}
+
+@keyframes nb-squeeze {
+  0% {
+    transform: scaleX(1.25);
+    opacity: 0.6;
+  }
+  60% {
+    transform: scaleX(0.92);
+  }
+}
+
+@keyframes nb-reveal {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes nb-drop {
+  from {
+    transform: translateY(-14px);
+    opacity: 0;
+  }
+}
+
+@keyframes nb-pop {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes nb-chip {
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 137, 6, 0.25);
+  }
+}
+
+@keyframes nb-throb {
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes nb-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(229, 49, 112, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(229, 49, 112, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nb-root * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -145,6 +145,20 @@ export const sfx = {
     noise(1.3, { filter: "lowpass", from: 3000, to: 60, gain: 0.7 });
     tone(90, 1.1, { slideTo: 30, gain: 0.6 });
   },
+  /** 倒计时滴答，urgency 0~1，越紧张音调越高、越响 */
+  tick(urgency = 0) {
+    tone(900 + urgency * 700, 0.035, { type: "square", gain: 0.04 + urgency * 0.07 });
+  },
+  /** 安全：叮咚，越接近炸弹音调越高 */
+  safe(urgency = 0) {
+    tone(600 + urgency * 500, 0.12, { type: "triangle", gain: 0.16 });
+    tone(900 + urgency * 700, 0.22, { type: "triangle", gain: 0.16, delay: 0.1 });
+  },
+  /** 输了：下行的“哇哇哇” */
+  lose() {
+    [392, 370, 349].forEach((f, i) => tone(f, 0.28, { type: "sawtooth", gain: 0.06, delay: 0.9 + i * 0.3 }));
+    tone(330, 0.8, { type: "sawtooth", slideTo: 300, gain: 0.06, delay: 1.8 });
+  },
   myTurn() {
     tone(880, 0.12, { gain: 0.14 });
     tone(1175, 0.2, { gain: 0.14, delay: 0.12 });
