@@ -58,13 +58,13 @@ export class RoomManager {
     return this.rooms.get(code.toUpperCase());
   }
 
-  create(playerId: string, name: string, socketId: string): Room {
+  create(playerId: string, name: string, socketId: string, gameId?: unknown): Room {
     const code = this.newCode();
     const room: Room = {
       code,
       hostId: playerId,
       players: [{ id: playerId, name, connected: true, socketId }],
-      selectedGame: "numberBomb",
+      selectedGame: typeof gameId === "string" && gameId in GAMES ? (gameId as GameId) : "numberBomb",
       game: null,
       cleanupTimer: null,
     };
@@ -170,6 +170,13 @@ export class RoomManager {
     const room = this.requireHost(code, playerId);
     room.game = null;
     this.onChange(room);
+  }
+
+  /** 同一个游戏、同一批人直接再来一局 */
+  restart(code: string, playerId: string): void {
+    const room = this.requireHost(code, playerId);
+    room.game = null;
+    this.start(code, playerId);
   }
 
   viewFor(room: Room, playerId: string): RoomView {

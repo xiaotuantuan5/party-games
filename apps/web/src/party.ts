@@ -79,9 +79,9 @@ export function useParty() {
   }, [enter]);
 
   const actions = {
-    create: (name: string) =>
+    create: (name: string, gameId?: GameId) =>
       socket
-        .emitWithAck("room:create", { token: getToken(), name })
+        .emitWithAck("room:create", { token: getToken(), name, gameId })
         .then(unwrap)
         .then((r) => enter(r, name.trim())),
     join: (name: string, code: string) =>
@@ -99,6 +99,7 @@ export function useParty() {
     start: () => socket.emitWithAck("game:start").then(unwrap),
     act: (action: GameAction) => socket.emitWithAck("game:action", action).then(unwrap),
     backToLobby: () => socket.emitWithAck("game:backToLobby").then(unwrap),
+    restart: () => socket.emitWithAck("game:restart").then(unwrap),
   };
 
   return { room, me, connected, notice, clearNotice: () => setNotice(null), actions };

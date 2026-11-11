@@ -123,3 +123,25 @@ export function SoundToggle() {
     </button>
   );
 }
+
+/** 新拿到的牌播放发牌动画：返回 新牌 id → 第几张（用来错开动画） */
+export function useFreshCards(hand: { id: number }[]): Map<number, number> {
+  const known = useRef<Set<number> | null>(null);
+  const [fresh, setFresh] = useState<Map<number, number>>(new Map());
+
+  useEffect(() => {
+    const ids = hand.map((c) => c.id);
+    const prev = known.current;
+    known.current = new Set(ids);
+    const added = ids.filter((id) => !prev?.has(id));
+    if (added.length) setFresh(new Map(added.map((id, i) => [id, i])));
+  }, [hand]);
+
+  useEffect(() => {
+    if (!fresh.size) return;
+    const t = setTimeout(() => setFresh(new Map()), 500 + fresh.size * 70);
+    return () => clearTimeout(t);
+  }, [fresh]);
+
+  return fresh;
+}

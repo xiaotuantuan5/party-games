@@ -66,7 +66,7 @@ io.on("connection", (socket: AppSocket) => {
       const name = validateName(p?.name);
       leaveCurrent(socket);
       const playerId = playerIdFromToken(token);
-      const room = rooms.create(playerId, name, socket.id);
+      const room = rooms.create(playerId, name, socket.id, p?.gameId);
       socket.data = { playerId, roomCode: room.code };
       return { code: room.code, playerId };
     }),
@@ -116,6 +116,13 @@ io.on("connection", (socket: AppSocket) => {
     handle(ack, () => {
       const { code, playerId } = requireRoom(socket);
       rooms.backToLobby(code, playerId);
+    }),
+  );
+
+  socket.on("game:restart", (ack) =>
+    handle(ack, () => {
+      const { code, playerId } = requireRoom(socket);
+      rooms.restart(code, playerId);
     }),
   );
 

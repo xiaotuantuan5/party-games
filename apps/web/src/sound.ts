@@ -154,6 +154,39 @@ export const sfx = {
     tone(600 + urgency * 500, 0.12, { type: "triangle", gain: 0.16 });
     tone(900 + urgency * 700, 0.22, { type: "triangle", gain: 0.16, delay: 0.1 });
   },
+  /** 喊“骗子！”：一声重音 */
+  liar() {
+    noise(0.15, { filter: "lowpass", from: 2000, to: 300, gain: 0.35 });
+    tone(220, 0.35, { type: "square", slideTo: 140, gain: 0.12 });
+    tone(330, 0.35, { type: "square", slideTo: 210, gain: 0.08, delay: 0.02 });
+  },
+  /** 翻牌 */
+  flip() {
+    noise(0.05, { filter: "highpass", from: 4000, to: 2500, gain: 0.2 });
+    tone(1200, 0.04, { type: "triangle", gain: 0.06, delay: 0.02 });
+  },
+  /** 转动左轮弹巢：先快后慢的咔哒声 */
+  spin() {
+    let t = 0;
+    for (let i = 0; i < 12; i++) {
+      noise(0.025, { filter: "bandpass", from: 3000, to: 2500, gain: 0.25, delay: t });
+      t += 0.04 + i * 0.012;
+    }
+  },
+  /** 空枪 */
+  dryFire() {
+    tone(1800, 0.025, { type: "square", gain: 0.2 });
+    noise(0.04, { filter: "highpass", from: 5000, to: 3000, gain: 0.3 });
+  },
+  gunshot() {
+    noise(0.7, { filter: "lowpass", from: 7000, to: 90, gain: 0.85 });
+    tone(130, 0.45, { slideTo: 40, gain: 0.6 });
+  },
+  /** 心跳：等待扣扳机时循环播放 */
+  heartbeat() {
+    tone(65, 0.12, { gain: 0.45 });
+    tone(55, 0.12, { gain: 0.35, delay: 0.2 });
+  },
   /** 选中一个数字格子：啵 */
   pick() {
     tone(500, 0.08, { type: "sine", slideTo: 900, gain: 0.18 });

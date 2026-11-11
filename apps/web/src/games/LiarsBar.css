@@ -1,0 +1,652 @@
+.lb-root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lb-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lb-head h2 {
+  flex: 1;
+}
+
+.lb-round {
+  padding: 2px 10px;
+  font-size: 13px;
+  border-radius: 999px;
+  color: #8a4b14;
+  background: #fbead7;
+}
+
+/* ---------- 牌面 ---------- */
+.lb-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 54px;
+  height: 76px;
+  border-radius: 8px;
+  background: #fffdf7;
+  border: 2px solid #e8dcc4;
+  color: #3b2a1a;
+  font-weight: 900;
+}
+
+.lb-face-label {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.lb-face-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.lb-face.r-K .lb-face-label {
+  color: #b5651d;
+}
+.lb-face.r-Q .lb-face-label {
+  color: #c2185b;
+}
+.lb-face.r-A .lb-face-label {
+  color: #1565c0;
+}
+.lb-face.r-joker {
+  background: linear-gradient(135deg, #fff1f8, #f2f0ff);
+}
+.lb-face.r-joker .lb-face-label {
+  color: #7f5af0;
+  font-size: 20px;
+}
+
+.lb-back {
+  display: block;
+  width: 54px;
+  height: 76px;
+  border-radius: 8px;
+  border: 2px solid #f3e1c0;
+  background:
+    radial-gradient(circle at 50% 50%, #e9b04f 0 9px, transparent 10px),
+    repeating-linear-gradient(45deg, #7a2e12 0 6px, #64240d 6px 12px);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* ---------- 桌面 ---------- */
+.lb-table {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 12px;
+  padding: 16px 12px;
+  border-radius: 16px;
+  color: #fff;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(255, 200, 120, 0.25), transparent 70%),
+    repeating-linear-gradient(90deg, #6b3a1c 0 22px, #5e3117 22px 44px);
+  box-shadow: inset 0 0 0 4px #4a250f, 0 6px 14px rgba(0, 0, 0, 0.25);
+}
+
+.lb-table-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  animation: lb-table-in 0.7s cubic-bezier(0.2, 0.8, 0.3, 1.3) both;
+}
+
+.lb-table-card .lb-face {
+  width: 64px;
+  height: 90px;
+  box-shadow: 0 0 0 3px #e9b04f, 0 0 18px rgba(233, 176, 79, 0.8);
+}
+
+.lb-table-card .lb-face-label {
+  font-size: 32px;
+}
+
+.lb-table-label {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.lb-table-hint {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.lb-pile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 130px;
+}
+
+.lb-pile-stack {
+  position: relative;
+  width: 54px;
+  height: 76px;
+}
+
+.lb-pile-stack:empty {
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+}
+
+.lb-back.pile {
+  position: absolute;
+  inset: 0;
+}
+
+.lb-back.pile:last-child {
+  animation: lb-slide-in 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+}
+
+.lb-claim {
+  max-width: 170px;
+  padding: 6px 10px;
+  font-size: 13px;
+  text-align: center;
+  border-radius: 12px;
+  color: #3b2a1a;
+  background: #fffdf7;
+  animation: lb-bubble 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.4);
+}
+
+.lb-claim.muted {
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(0, 0, 0, 0.2);
+  animation: none;
+}
+
+/* ---------- 座位 ---------- */
+.lb-seats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lb-seats li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: #faf6ef;
+  transition: all 0.3s ease;
+}
+
+.lb-seats li.current {
+  border-color: #e9b04f;
+  background: #fff6e0;
+  animation: lb-glow 1.4s ease-in-out infinite;
+}
+
+.lb-seats li.shooter {
+  border-color: #e53170;
+  background: #ffe9ef;
+  animation: lb-danger 0.9s ease-in-out infinite;
+}
+
+.lb-seats li.out {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+.lb-seats li.winner {
+  border-color: #ffd803;
+  background: #fff8cc;
+}
+
+.lb-seat-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lb-seat-name {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.lb-seat-cards {
+  display: flex;
+  gap: 2px;
+  margin-top: 3px;
+  min-height: 16px;
+  align-items: center;
+}
+
+.lb-mini-back {
+  width: 11px;
+  height: 16px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(45deg, #7a2e12 0 3px, #64240d 3px 6px);
+}
+
+.lb-no-cards {
+  font-size: 11px;
+  color: #999;
+}
+
+.lb-gun {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #3b2a1a;
+}
+
+.lb-wait-shot .lb-gun {
+  color: #fff;
+}
+
+.lb-gun-icon {
+  flex-shrink: 0;
+}
+
+.lb-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lb-gun.out {
+  opacity: 0.5;
+}
+
+.lb-chambers {
+  display: grid;
+  grid-template-columns: repeat(3, 7px);
+  gap: 2px;
+}
+
+.lb-chamber {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3b2a1a;
+}
+
+.lb-chamber.fired {
+  background: #d8cfc2;
+}
+
+/* ---------- 状态和手牌 ---------- */
+.lb-status {
+  margin: 0;
+  text-align: center;
+  color: #666;
+}
+
+.lb-status.mine {
+  color: #b5651d;
+  font-weight: bold;
+}
+
+.lb-hand-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.lb-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.lb-card {
+  padding: 0;
+  background: none;
+  border-radius: 10px;
+  transition: transform 0.15s ease;
+}
+
+.lb-card:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.lb-card:not(:disabled):hover {
+  transform: translateY(-4px);
+}
+
+.lb-card .lb-face {
+  width: 58px;
+  height: 82px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15);
+}
+
+.lb-card.truth .lb-face {
+  border-color: #e9b04f;
+}
+
+.lb-card.selected {
+  transform: translateY(-14px) rotate(-3deg);
+}
+
+.lb-card.selected .lb-face {
+  border-color: #e53170;
+  box-shadow:
+    0 0 0 3px #e53170,
+    0 10px 16px rgba(0, 0, 0, 0.25);
+}
+
+.lb-card.deal {
+  animation: lb-deal 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+}
+
+.lb-actions {
+  gap: 8px;
+}
+
+.lb-liar {
+  flex: 1;
+  padding: 14px;
+  font-size: 18px;
+  font-weight: 900;
+  background: #e53170;
+  animation: lb-pulse 1.2s ease-in-out infinite;
+}
+
+.lb-play {
+  flex: 2;
+  padding: 14px;
+  font-weight: bold;
+  background: #b5651d;
+}
+
+.lb-winner {
+  font-size: 22px;
+  animation: lb-table-in 0.8s 1.8s both;
+}
+
+.lb-log {
+  margin: 0;
+}
+
+.history li.lb-log-bang {
+  color: #e53170;
+  font-weight: bold;
+}
+
+.history li.lb-log-challenge {
+  color: #b5651d;
+  font-weight: bold;
+}
+
+/* ---------- 摊牌 ---------- */
+.lb-showdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 12px;
+  border-radius: 16px;
+  color: #fff;
+  background: radial-gradient(circle at 50% 30%, #4a1d2c, #1c0b12);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  animation: lb-table-in 0.4s ease both;
+}
+
+.lb-callout {
+  font-size: 18px;
+  animation: lb-callout 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.6) both;
+}
+
+.lb-callout strong {
+  color: #ffd803;
+  font-size: 22px;
+}
+
+.lb-reveal {
+  display: flex;
+  gap: 8px;
+  perspective: 600px;
+}
+
+.lb-flip {
+  width: 54px;
+  height: 76px;
+}
+
+.lb-flip-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: lb-flip 0.5s var(--delay) ease both;
+}
+
+.lb-flip-inner > * {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+
+.lb-flip-inner > .lb-face {
+  transform: rotateY(180deg);
+}
+
+.lb-flip.bad .lb-face {
+  border-color: #e53170;
+  box-shadow: 0 0 0 3px #e53170;
+}
+
+.lb-flip.ok .lb-face {
+  border-color: #2cb67d;
+  box-shadow: 0 0 0 3px #2cb67d;
+}
+
+.lb-verdict {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: lb-table-in 0.5s ease both;
+}
+
+.lb-verdict-title {
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.lb-verdict-title.lie {
+  color: #ff6b8b;
+}
+
+.lb-verdict-title.truth {
+  color: #6bdca8;
+}
+
+.lb-verdict-sub {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.lb-trigger {
+  padding: 14px 28px;
+  font-size: 20px;
+  font-weight: 900;
+  border-radius: 999px;
+  background: #e53170;
+  box-shadow: 0 0 0 0 rgba(229, 49, 112, 0.7);
+  animation: lb-pulse 0.9s ease-in-out infinite;
+}
+
+.lb-wait-shot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.lb-wait-shot .lb-chamber {
+  background: #fff;
+}
+
+.lb-wait-shot .lb-chamber.fired {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ---------- 开枪悬念 ---------- */
+.lb-suspense {
+  position: fixed;
+  inset: 0;
+  z-index: 101;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: #fff;
+  /* 完全不透明：底下的日志已经写了结果，不能透出来 */
+  background: #0a0406;
+  animation: fade-in 0.2s ease;
+}
+
+.lb-suspense-gun {
+  color: #d8d8d8;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
+  animation: lb-gun-shake 0.12s linear infinite;
+}
+
+.lb-suspense-text {
+  font-size: 22px;
+  font-weight: bold;
+}
+
+/* 弹巢：6 个孔排成一圈，转几圈后停下 */
+.lb-cylinder {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #9a9a9a 0 10px, #6d6d6d 11px, #4a4a4a 100%);
+  box-shadow:
+    inset 0 0 0 3px #2a2a2a,
+    0 6px 16px rgba(0, 0, 0, 0.5);
+  animation: lb-spin 1.3s cubic-bezier(0.15, 0.6, 0.25, 1) both;
+}
+
+.lb-cyl-hole {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px;
+  border-radius: 50%;
+  /* 没开过的弹膛：看不见里面有没有子弹 */
+  background: radial-gradient(circle, #0b0b0b 0 6px, #2a2a2a 7px);
+  box-shadow: inset 0 0 0 2px #8f8f8f;
+}
+
+/* 已经扣过的弹膛：确定是空的，变淡 */
+.lb-cyl-hole.fired {
+  opacity: 0.35;
+}
+
+/* ---------- 关键帧 ---------- */
+@keyframes lb-table-in {
+  from {
+    transform: scale(0.6) rotate(-6deg);
+    opacity: 0;
+  }
+}
+
+@keyframes lb-slide-in {
+  from {
+    transform: translate(-80px, 40px) rotate(-40deg);
+    opacity: 0;
+  }
+}
+
+@keyframes lb-bubble {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+}
+
+@keyframes lb-deal {
+  from {
+    transform: translateY(-160px) rotate(-20deg) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes lb-flip {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(180deg);
+  }
+}
+
+@keyframes lb-callout {
+  from {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+@keyframes lb-glow {
+  50% {
+    box-shadow: 0 0 0 4px rgba(233, 176, 79, 0.3);
+  }
+}
+
+@keyframes lb-danger {
+  50% {
+    box-shadow: 0 0 0 5px rgba(229, 49, 112, 0.3);
+  }
+}
+
+@keyframes lb-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(229, 49, 112, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(229, 49, 112, 0);
+  }
+}
+
+@keyframes lb-gun-shake {
+  25% {
+    transform: translate(-2px, 1px) rotate(-2deg);
+  }
+  75% {
+    transform: translate(2px, -1px) rotate(2deg);
+  }
+}
+
+@keyframes lb-spin {
+  from {
+    transform: rotate(-720deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-root *,
+  .lb-suspense,
+  .lb-suspense * {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

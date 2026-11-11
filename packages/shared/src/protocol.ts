@@ -29,13 +29,16 @@ export interface JoinResult {
 
 export interface ClientToServerEvents {
   /** token 是客户端本地生成并保存的随机串，用于断线重连时识别身份，不会下发给其他人 */
-  "room:create": (p: { token: string; name: string }, ack: Ack<JoinResult>) => void;
+  /** gameId：从首页某个游戏卡片直接开房时预先选好游戏 */
+  "room:create": (p: { token: string; name: string; gameId?: GameId }, ack: Ack<JoinResult>) => void;
   "room:join": (p: { token: string; name: string; code: string }, ack: Ack<JoinResult>) => void;
   "room:leave": () => void;
   "room:selectGame": (p: { gameId: GameId }, ack: Ack) => void;
   "game:start": (ack: Ack) => void;
   "game:action": (action: GameAction, ack: Ack) => void;
   "game:backToLobby": (ack: Ack) => void;
+  /** 房主一键再来一局（同一个游戏，同一批人） */
+  "game:restart": (ack: Ack) => void;
 }
 
 export interface ServerToClientEvents {

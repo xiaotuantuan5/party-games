@@ -6,7 +6,7 @@ import {
   type BombCatLogEntry,
   type BombCatView,
 } from "@party/shared";
-import { Confetti, FxLayer, SoundToggle, useFx } from "../fx";
+import { Confetti, FxLayer, SoundToggle, useFreshCards, useFx } from "../fx";
 import { sfx, vibrate } from "../sound";
 import { nameOf, useRun, type GameProps } from "../ui";
 import "./BombCat.css";
@@ -121,28 +121,6 @@ function useGameEffects(g: BombCatView, me: string, name: (id?: string | null) =
   }, [isMyTurn]);
 
   return { fx, shaking, deckBump, confetti };
-}
-
-/** 新拿到的牌播放发牌动画 */
-function useFreshCards(hand: { id: number }[]): Map<number, number> {
-  const known = useRef<Set<number> | null>(null);
-  const [fresh, setFresh] = useState<Map<number, number>>(new Map());
-
-  useEffect(() => {
-    const ids = hand.map((c) => c.id);
-    const prev = known.current;
-    known.current = new Set(ids);
-    const added = ids.filter((id) => !prev?.has(id));
-    if (added.length) setFresh(new Map(added.map((id, i) => [id, i])));
-  }, [hand]);
-
-  useEffect(() => {
-    if (!fresh.size) return;
-    const t = setTimeout(() => setFresh(new Map()), 500 + fresh.size * 70);
-    return () => clearTimeout(t);
-  }, [fresh]);
-
-  return fresh;
 }
 
 const CAT_SHARDS = ["🔥", "💥", "✨", "🐱"];
