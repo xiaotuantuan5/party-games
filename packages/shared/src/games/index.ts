@@ -1,14 +1,18 @@
 import type { BombCatAction, BombCatView } from "./bombCat.js";
+import type { JengaAction, JengaView } from "./jenga.js";
 import type { LiarsBarAction, LiarsBarView } from "./liarsBar.js";
 import type { NumberBombAction, NumberBombView } from "./numberBomb.js";
 import type { UndercoverAction, UndercoverView } from "./undercover.js";
+import type { UnoAction, UnoView } from "./uno.js";
 
 export * from "./bombCat.js";
+export * from "./jenga.js";
 export * from "./liarsBar.js";
 export * from "./numberBomb.js";
 export * from "./undercover.js";
+export * from "./uno.js";
 
-export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar";
+export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga";
 
 export interface GameMeta {
   id: GameId;
@@ -28,6 +32,46 @@ export interface GameMeta {
 }
 
 export const GAMES: Record<GameId, GameMeta> = {
+  uno: {
+    id: "uno",
+    name: "UNO",
+    emoji: "🃏",
+    tagline: "同色同数就能出，剩一张记得喊 UNO",
+    description: "经典 UNO：跟颜色或数字出牌，用禁止、反转、+2、变色 +4 坑别人，第一个出完手牌的人获胜。",
+    minPlayers: 2,
+    maxPlayers: 10,
+    duration: "10~20 分钟",
+    tags: ["卡牌", "经典", "坑队友"],
+    rules: [
+      "每人 7 张牌，翻开一张作为起始牌。轮到你时，出一张和桌面同颜色、或同数字 / 同符号的牌。",
+      "⊘ 禁止：下家跳过一回合。⇄ 反转：出牌方向反过来（2 人时相当于禁止）。+2：下家摸 2 张并跳过回合。",
+      "★ 变色：任何时候都能出，并指定下一个颜色。+4：指定颜色，下家摸 4 张并跳过回合。",
+      "没有能出的牌（或者不想出）就摸一张；摸到的牌能出可以马上打出，否则轮到下家。",
+      "出倒数第二张牌时要点“UNO!”。剩 1 张没喊被别人抓到，罚摸 2 张；在下一个人行动前补喊也算数。",
+      "第一个出完手牌的人获胜。本版本不能叠加 +2 / +4，也不能质疑 +4。",
+    ],
+    color: "#e8333a",
+  },
+  jenga: {
+    id: "jenga",
+    name: "层层叠",
+    emoji: "🧱",
+    tagline: "3D 木塔，手一抖就塌",
+    description: "18 层木塔，大家轮流抽出一根木块放到塔顶。拖动可以转着看，抽的时候比拼手稳，推倒塔的人输。",
+    minPlayers: 2,
+    maxPlayers: 8,
+    duration: "5~15 分钟",
+    tags: ["3D", "手稳", "惩罚游戏"],
+    rules: [
+      "塔有 18 层，每层 3 根木块，相邻两层方向交错。单指拖动旋转视角，双指 / 滚轮缩放。",
+      "轮到你时，点一根木块选中，再点“抽出”。抽出的木块会自动放到塔顶。",
+      "最上面一层完整层和它上面的木块不能抽。",
+      "抽的时候会出现一个来回摆动的指针，指针越靠近中间时按下，手越稳，越不容易塌。",
+      "一层只剩一边的木块必倒；只剩中间一根还能撑住。越往下抽、塔越空越高，越容易塌。",
+      "把塔推倒的人输，可以配合惩罚：表演节目、喝一杯、说一个秘密……",
+    ],
+    color: "#c8873a",
+  },
   liarsBar: {
     id: "liarsBar",
     name: "骗子酒馆",
@@ -107,7 +151,13 @@ export const GAMES: Record<GameId, GameMeta> = {
 };
 
 /** 首页展示顺序 */
-export const GAME_ORDER: GameId[] = ["liarsBar", "bombCat", "numberBomb", "undercover"];
+export const GAME_ORDER: GameId[] = ["uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
 
-export type GameView = NumberBombView | UndercoverView | BombCatView | LiarsBarView;
-export type GameAction = NumberBombAction | UndercoverAction | BombCatAction | LiarsBarAction;
+export type GameView = NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView;
+export type GameAction =
+  | NumberBombAction
+  | UndercoverAction
+  | BombCatAction
+  | LiarsBarAction
+  | UnoAction
+  | JengaAction;

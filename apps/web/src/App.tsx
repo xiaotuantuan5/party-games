@@ -1,14 +1,18 @@
-import { useRef, useState, type CSSProperties } from "react";
+import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
 import { GAME_ORDER, GAMES, type GameId, type RoomView } from "@party/shared";
 import { Avatar, GameCard, GameDetail, Sheet, randomName } from "./components";
 import { BombCat } from "./games/BombCat";
 import { LiarsBar } from "./games/LiarsBar";
 import { NumberBomb } from "./games/NumberBomb";
 import { Undercover } from "./games/Undercover";
+import { Uno } from "./games/Uno";
 import { useParty, savedName, type PartyActions } from "./party";
 import { useRun, type GameProps } from "./ui";
 
-const NEW_GAMES: GameId[] = ["liarsBar"];
+// 3D 层层叠依赖 three.js 和物理引擎，体积较大，进入游戏时才加载
+const Jenga = lazy(() => import("./games/Jenga").then((m) => ({ default: m.Jenga })));
+
+const NEW_GAMES: GameId[] = ["uno", "jenga"];
 
 export function App() {
   const { room, me, connected, notice, clearNotice, actions } = useParty();
@@ -214,6 +218,12 @@ function RoomScreen({ room, me, actions }: GameProps) {
             )}
             {room.game.gameId === "bombCat" && <BombCat room={room} me={me} actions={actions} />}
             {room.game.gameId === "liarsBar" && <LiarsBar room={room} me={me} actions={actions} />}
+            {room.game.gameId === "uno" && <Uno room={room} me={me} actions={actions} />}
+            {room.game.gameId === "jenga" && (
+              <Suspense fallback={<p className="hint center">正在搭木塔…</p>}>
+                <Jenga room={room} me={me} actions={actions} />
+              </Suspense>
+            )}
           </div>
 
           {room.game.phase === "ended" ? (

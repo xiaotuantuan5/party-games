@@ -200,6 +200,54 @@ export const sfx = {
     [392, 370, 349].forEach((f, i) => tone(f, 0.28, { type: "sawtooth", gain: 0.06, delay: 0.9 + i * 0.3 }));
     tone(330, 0.8, { type: "sawtooth", slideTo: 300, gain: 0.06, delay: 1.8 });
   },
+  /** UNO 变色牌：一圈上行的音阶 */
+  wild() {
+    [523, 659, 784, 988, 1175].forEach((f, i) => tone(f, 0.16, { type: "triangle", gain: 0.13, delay: i * 0.05 }));
+  },
+  /** UNO 反转：先降后升 */
+  reverse() {
+    tone(900, 0.14, { type: "triangle", slideTo: 400, gain: 0.16 });
+    tone(400, 0.16, { type: "triangle", slideTo: 900, gain: 0.16, delay: 0.14 });
+  },
+  /** 喊 UNO：两声短促的号角 */
+  unoShout() {
+    tone(660, 0.12, { type: "sawtooth", gain: 0.09 });
+    tone(990, 0.28, { type: "sawtooth", gain: 0.09, delay: 0.12 });
+  },
+  /** 被抓没喊 UNO：警笛 */
+  caught() {
+    for (let i = 0; i < 3; i++) {
+      tone(700, 0.15, { type: "square", slideTo: 1100, gain: 0.07, delay: i * 0.3 });
+      tone(1100, 0.15, { type: "square", slideTo: 700, gain: 0.07, delay: i * 0.3 + 0.15 });
+    }
+  },
+  /** 层层叠：轻敲木块 */
+  woodTap() {
+    tone(1400, 0.05, { type: "triangle", gain: 0.12 });
+    noise(0.03, { filter: "bandpass", from: 2500, to: 1800, gain: 0.12 });
+  },
+  /** 层层叠：木块和木块摩擦着被抽出来 */
+  woodSlide(dur = 0.7) {
+    noise(dur, { filter: "bandpass", from: 900, to: 500, gain: 0.12 });
+    tone(140, dur, { type: "sawtooth", slideTo: 110, gain: 0.025 });
+  },
+  /** 层层叠：木块放到塔顶 */
+  woodPlace() {
+    tone(420, 0.08, { type: "triangle", gain: 0.25 });
+    noise(0.05, { filter: "bandpass", from: 1500, to: 800, gain: 0.25 });
+  },
+  /** 层层叠：整座塔哗啦倒下 */
+  towerCollapse() {
+    noise(1.6, { filter: "lowpass", from: 2500, to: 80, gain: 0.5 });
+    for (let i = 0; i < 26; i++) {
+      const d = 0.15 + Math.pow(Math.random(), 0.7) * 1.6;
+      tone(300 + Math.random() * 500, 0.06, { type: "triangle", gain: 0.12 + Math.random() * 0.12, delay: d });
+    }
+  },
+  /** 层层叠：塔有点晃时的吱呀声 */
+  creak() {
+    tone(180, 0.5, { type: "sawtooth", slideTo: 140, gain: 0.03 });
+  },
   myTurn() {
     tone(880, 0.12, { gain: 0.14 });
     tone(1175, 0.2, { gain: 0.14, delay: 0.12 });

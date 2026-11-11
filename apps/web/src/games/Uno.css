@@ -1,0 +1,458 @@
+/* ---------- 布局 ---------- */
+.uno-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.uno-head,
+.uno-hand-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ---------- 玩家 ---------- */
+.uno-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.uno-players li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f2f2f5;
+  font-size: 14px;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.uno-players li.current {
+  background: #fff3c4;
+  box-shadow: 0 0 0 2px #f5c400;
+}
+
+.uno-players li.winner {
+  background: #d8f5df;
+  box-shadow: 0 0 0 2px #3aa845;
+}
+
+.uno-count {
+  font-variant-numeric: tabular-nums;
+  color: #555;
+}
+
+.uno-count.one {
+  color: #e8333a;
+  font-weight: bold;
+}
+
+.uno-badge {
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+  background: #e8333a;
+  padding: 1px 6px;
+  border-radius: 6px;
+  transform: rotate(-6deg);
+}
+
+.uno-catch {
+  padding: 2px 8px;
+  font-size: 13px;
+  background: #e8333a;
+  animation: uno-pulse 0.8s ease-in-out infinite;
+}
+
+.uno-catch.big {
+  width: 100%;
+  padding: 10px;
+  font-size: 15px;
+}
+
+.uno-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---------- 牌桌 ---------- */
+.uno-table {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 36px;
+  padding: 22px 12px;
+  border-radius: 14px;
+  background: radial-gradient(circle at 50% 40%, #c0392b, #6e1a12);
+  box-shadow: inset 0 0 0 4px var(--cur), inset 0 0 40px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 0.4s;
+  overflow: hidden;
+}
+
+.uno-direction {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 180px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  animation: uno-rotate 8s linear infinite;
+}
+
+.uno-direction.ccw {
+  transform: scaleX(-1);
+  animation-direction: reverse;
+}
+
+.uno-direction.flip {
+  color: rgba(255, 255, 255, 0.25);
+  transition: color 1s;
+}
+
+.uno-deck {
+  position: relative;
+  width: 76px;
+  height: 112px;
+  padding: 0;
+  border-radius: 10px;
+  border: 4px solid #fff;
+  background: radial-gradient(ellipse at center, #e8333a 0 38%, #16161a 39%);
+  box-shadow:
+    3px 3px 0 #333,
+    4px 4px 0 #fff,
+    7px 7px 0 #333,
+    8px 8px 0 #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.uno-deck:disabled {
+  opacity: 1;
+}
+
+.uno-deck.ready {
+  cursor: pointer;
+}
+
+.uno-deck.ready:active {
+  transform: translate(2px, 2px);
+}
+
+.uno-deck.nudge,
+.uno-draw-btn.nudge {
+  animation: uno-nudge 1.4s ease-in-out infinite;
+}
+
+.uno-back-logo {
+  font-weight: 900;
+  font-style: italic;
+  font-size: 20px;
+  color: #f5c400;
+  transform: rotate(-20deg);
+  text-shadow: 2px 2px 0 #16161a;
+}
+
+.uno-deck-count {
+  position: absolute;
+  bottom: -26px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #fff;
+  font-size: 13px;
+}
+
+.uno-discard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.uno-chosen {
+  position: absolute;
+  bottom: -24px;
+  color: #fff;
+  font-size: 13px;
+}
+
+.uno-dirtext {
+  text-align: center;
+  font-size: 13px;
+  color: #555;
+}
+
+.uno-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
+.uno-status {
+  text-align: center;
+}
+
+.uno-win-text {
+  animation: uno-pop 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.4);
+}
+
+/* ---------- 卡牌 ---------- */
+.uno-card {
+  --uc: #16161a;
+  position: relative;
+  flex: none;
+  width: 58px;
+  height: 86px;
+  padding: 0;
+  border-radius: 8px;
+  border: 3px solid #fff;
+  background: var(--uc);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition:
+    transform 0.15s,
+    opacity 0.15s,
+    filter 0.15s;
+}
+
+.uno-card.wild {
+  background: conic-gradient(#e8333a 0 25%, #f5c400 0 50%, #3aa845 0 75%, #1f6fd1 0);
+}
+
+.uno-oval {
+  width: 80%;
+  height: 62%;
+  border-radius: 50%;
+  background: #fff;
+  transform: rotate(-28deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.uno-card.wild .uno-oval {
+  background: #16161a;
+}
+
+.uno-symbol {
+  display: flex;
+  transform: rotate(28deg);
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--uc);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.25);
+}
+
+.uno-icon {
+  width: 1em;
+  height: 1em;
+  display: block;
+}
+
+.uno-card.wild .uno-symbol {
+  color: #fff;
+}
+
+.uno-corner {
+  position: absolute;
+  display: flex;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.uno-corner.tl {
+  top: 4px;
+  left: 5px;
+}
+
+.uno-corner.br {
+  bottom: 4px;
+  right: 5px;
+  transform: rotate(180deg);
+}
+
+.uno-card.big {
+  width: 76px;
+  height: 112px;
+  border-width: 4px;
+  cursor: default;
+}
+
+.uno-card.big .uno-symbol {
+  font-size: 34px;
+}
+
+.uno-card.land {
+  animation: uno-land 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.3);
+}
+
+/* ---------- 手牌：一排横向可滑动，牌多时互相叠一点 ---------- */
+.uno-hand {
+  display: flex;
+  overflow-x: auto;
+  padding: 18px 8px 8px;
+  margin: 0 -8px;
+  scrollbar-width: thin;
+}
+
+.uno-hand .uno-card + .uno-card {
+  margin-left: clamp(-34px, (min(100vw, 480px) - 100px) / var(--n) - 58px, 4px);
+}
+
+.uno-hand .uno-card.dim {
+  filter: brightness(0.55) saturate(0.6);
+}
+
+.uno-hand .uno-card.playable {
+  cursor: pointer;
+  transform: translateY(-6px);
+}
+
+.uno-hand .uno-card.selected {
+  transform: translateY(-16px) scale(1.06);
+  box-shadow:
+    0 0 0 3px #f5c400,
+    0 8px 16px rgba(0, 0, 0, 0.35);
+  z-index: 1;
+}
+
+.uno-hand .uno-card.drawn {
+  box-shadow:
+    0 0 0 3px #3aa845,
+    0 8px 16px rgba(0, 0, 0, 0.35);
+}
+
+.uno-hand .uno-card.deal {
+  animation: uno-deal 0.45s cubic-bezier(0.2, 0.8, 0.3, 1.2) backwards;
+}
+
+/* ---------- 按钮 ---------- */
+.uno-shout {
+  font-weight: 900;
+  font-style: italic;
+  background: #f5c400;
+  color: #16161a;
+  padding: 6px 16px;
+  border-radius: 999px;
+  box-shadow: 0 3px 0 #b38e00;
+}
+
+.uno-shout.armed {
+  background: #3aa845;
+  color: #fff;
+  box-shadow: 0 3px 0 #23702c;
+}
+
+.uno-shout.urgent {
+  width: 100%;
+  padding: 12px;
+  font-size: 22px;
+  background: #e8333a;
+  color: #fff;
+  box-shadow: 0 4px 0 #8e1a1f;
+  animation: uno-pulse 0.6s ease-in-out infinite;
+}
+
+.uno-shout.urgent small {
+  font-size: 13px;
+  font-style: normal;
+  font-weight: normal;
+}
+
+.uno-decide button {
+  flex: 1;
+}
+
+.uno-color-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.uno-color-pick button {
+  height: 72px;
+  font-size: 20px;
+  font-weight: bold;
+  border-radius: 12px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* ---------- 动画 ---------- */
+@keyframes uno-land {
+  0% {
+    transform: translateY(-60px) rotate(-25deg) scale(1.3);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes uno-deal {
+  0% {
+    transform: translateY(-80px) scale(0.6);
+    opacity: 0;
+  }
+}
+
+@keyframes uno-pop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes uno-pulse {
+  50% {
+    transform: scale(1.04);
+    filter: brightness(1.15);
+  }
+}
+
+@keyframes uno-nudge {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes uno-rotate {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uno-direction,
+  .uno-catch,
+  .uno-shout.urgent,
+  .uno-deck.nudge,
+  .uno-draw-btn.nudge {
+    animation: none;
+  }
+}
