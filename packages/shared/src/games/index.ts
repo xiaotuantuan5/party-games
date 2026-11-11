@@ -1,10 +1,12 @@
+import type { BombCatAction, BombCatView } from "./bombCat.js";
 import type { NumberBombAction, NumberBombView } from "./numberBomb.js";
 import type { UndercoverAction, UndercoverView } from "./undercover.js";
 
+export * from "./bombCat.js";
 export * from "./numberBomb.js";
 export * from "./undercover.js";
 
-export type GameId = "numberBomb" | "undercover";
+export type GameId = "numberBomb" | "undercover" | "bombCat";
 
 export interface GameMeta {
   id: GameId;
@@ -29,7 +31,14 @@ export const GAMES: Record<GameId, GameMeta> = {
     minPlayers: 4,
     maxPlayers: 12,
   },
+  bombCat: {
+    id: "bombCat",
+    name: "炸弹猫",
+    description: "轮流出牌、摸牌，摸到炸弹猫又没有拆除牌就出局。用攻击、跳过、预言等功能牌躲开炸弹，活到最后的人获胜。",
+    minPlayers: 2,
+    maxPlayers: 10,
+  },
 };
 
-export type GameView = NumberBombView | UndercoverView;
-export type GameAction = NumberBombAction | UndercoverAction;
+export type GameView = NumberBombView | UndercoverView | BombCatView;
+export type GameAction = NumberBombAction | UndercoverAction | BombCatAction;

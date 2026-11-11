@@ -1,4 +1,5 @@
 import type { GameId } from "@party/shared";
+import { bombCat } from "./bombCat.js";
 import { numberBomb } from "./numberBomb.js";
 import type { AnyGameEngine } from "./types.js";
 import { undercover } from "./undercover.js";
@@ -7,4 +8,5 @@ import { undercover } from "./undercover.js";
 export const ENGINES: Record<GameId, AnyGameEngine> = {
   numberBomb,
   undercover,
+  bombCat,
 };

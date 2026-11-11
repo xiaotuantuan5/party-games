@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { GAMES } from "@party/shared";
+import { BombCat } from "./games/BombCat";
 import { NumberBomb } from "./games/NumberBomb";
 import { Undercover } from "./games/Undercover";
 import { useParty, savedName, type PartyActions } from "./party";
@@ -88,6 +89,7 @@ function RoomScreen({ room, me, actions }: GameProps) {
         <>
           {room.game.gameId === "numberBomb" && <NumberBomb room={room} me={me} actions={actions} />}
           {room.game.gameId === "undercover" && <Undercover room={room} me={me} actions={actions} />}
+          {room.game.gameId === "bombCat" && <BombCat room={room} me={me} actions={actions} />}
           {isHost && (
             <button className="secondary" onClick={() => run(actions.backToLobby())}>
               {room.game.phase === "ended" ? "回到大厅" : "结束本局，回到大厅"}
