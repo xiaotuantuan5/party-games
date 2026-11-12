@@ -258,6 +258,39 @@ export const sfx = {
   dawn() {
     [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, { type: "triangle", gain: 0.14, delay: i * 0.12 }));
   },
+  /** 星际穿梭：激光，很轻，因为自动开火很密 */
+  laser() {
+    tone(1700, 0.06, { type: "triangle", slideTo: 500, gain: 0.025 });
+  },
+  /** 星际穿梭：打中但没打碎 */
+  hitRock() {
+    noise(0.04, { filter: "bandpass", from: 2200, to: 1200, gain: 0.08 });
+  },
+  /** 星际穿梭：打碎陨石 / 敌机 */
+  rockBreak() {
+    noise(0.35, { filter: "lowpass", from: 2400, to: 120, gain: 0.3 });
+    tone(110, 0.3, { slideTo: 45, gain: 0.25 });
+  },
+  /** 星际穿梭：飞船被击中 */
+  playerHit() {
+    noise(0.3, { filter: "bandpass", from: 3000, to: 400, gain: 0.35 });
+    tone(220, 0.3, { type: "square", slideTo: 70, gain: 0.12 });
+  },
+  /** 星际穿梭：护盾被打碎 */
+  shieldBreak() {
+    for (let i = 0; i < 5; i++) tone(2400 - i * 300, 0.08, { type: "triangle", gain: 0.1, delay: i * 0.035 });
+  },
+  /** 星际穿梭：吃到能量块 */
+  powerup() {
+    [660, 880, 1100, 1320, 1760].forEach((f, i) => tone(f, 0.12, { type: "square", gain: 0.05, delay: i * 0.05 }));
+  },
+  /** 星际穿梭：Boss 来袭警报 */
+  bossWarning() {
+    for (let i = 0; i < 3; i++) {
+      tone(330, 0.35, { type: "sawtooth", slideTo: 660, gain: 0.07, delay: i * 0.75 });
+      tone(660, 0.35, { type: "sawtooth", slideTo: 330, gain: 0.07, delay: i * 0.75 + 0.35 });
+    }
+  },
   myTurn() {
     tone(880, 0.12, { gain: 0.14 });
     tone(1175, 0.2, { gain: 0.14, delay: 0.12 });
