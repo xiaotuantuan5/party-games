@@ -211,24 +211,27 @@ function Home({ actions, onSolo }: { actions: PartyActions; onSolo: (id: SoloGam
                 加入房间
               </button>
             </section>
-          ) : (
-            <section className="panel join-panel">
-              <span>有房间号？</span>
-              <input
-                value={code}
-                maxLength={4}
-                placeholder="4 位房间号"
-                aria-label="房间号"
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === "Enter" && code.length === 4 && join()}
-              />
-              <button type="button" disabled={code.length !== 4} onClick={join}>
-                加入
-              </button>
-            </section>
-          )}
+          ) : null}
 
-          <h2 className="section-title">{invited ? "或者自己开一个房间" : "选个游戏，开房间"}</h2>
+          {/* 有房间号的人不多，输入框和标题放同一行，不单独占一块 */}
+          <div className="section-row">
+            <h2 className="section-title">{invited ? "或者自己开一个房间" : "选个游戏，开房间"}</h2>
+            {!invited && (
+              <div className="join-inline">
+                <input
+                  value={code}
+                  maxLength={4}
+                  placeholder="房间号"
+                  aria-label="房间号"
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && code.length === 4 && join()}
+                />
+                <button type="button" disabled={code.length !== 4} onClick={join}>
+                  加入
+                </button>
+              </div>
+            )}
+          </div>
           <div className="game-grid">
             {GAME_ORDER.map((id) => (
               <GameCard key={id} meta={GAMES[id]} isNew={NEW_GAMES.includes(id)} onClick={() => setDetail(id)} />

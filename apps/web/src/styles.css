@@ -422,17 +422,63 @@ img.avatar {
   text-align: center;
 }
 
-.join-panel span {
-  white-space: nowrap;
-  font-size: 14px;
-  color: #555;
+.section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
 }
 
-.join-panel input {
-  text-transform: uppercase;
-  letter-spacing: 4px;
-  text-align: center;
+.section-row .section-title {
+  margin-top: 0;
+}
+
+/* 标题右边的小输入框：房间号 + 加入 */
+.join-inline {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.join-inline input {
+  flex: none;
+  width: 76px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 999px;
+  font-size: 14px;
   font-weight: bold;
+  letter-spacing: 2px;
+  text-align: center;
+  text-transform: uppercase;
+  color: #fff;
+  background: transparent;
+}
+
+.join-inline input::placeholder {
+  letter-spacing: 0;
+  font-weight: normal;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.join-inline input:focus {
+  outline: none;
+}
+
+.join-inline button {
+  padding: 4px 12px;
+  font-size: 13px;
+  color: #7f5af0;
+  background: #fff;
+  border-radius: 999px;
+}
+
+.join-inline button:disabled {
+  opacity: 0.6;
 }
 
 .section-title {
