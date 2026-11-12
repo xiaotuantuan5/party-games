@@ -1025,3 +1025,69 @@
     transform: rotate(-90deg);
   }
 }
+
+/* 角色选择 */
+.sm-roles {
+  display: flex;
+  gap: 8px;
+}
+
+.sm-role {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 70px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.sm-role.on {
+  border-color: #ffd23c;
+  background: rgba(255, 210, 60, 0.18);
+  box-shadow: 0 0 12px rgba(255, 210, 60, 0.45);
+}
+
+.sm-role-icon {
+  font-size: 20px;
+}
+
+.sm-role-name {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sm-role-desc {
+  margin: 0;
+  max-width: 560px;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* 觉醒时的画面色调 */
+.sm-tint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, var(--tc));
+  mix-blend-mode: screen;
+  animation: sm-tint 3.8s ease-in-out forwards;
+}
+
+@keyframes sm-tint {
+  0% {
+    opacity: 0;
+  }
+  15%,
+  80% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+  }
+}

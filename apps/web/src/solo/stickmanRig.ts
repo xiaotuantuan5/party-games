@@ -110,7 +110,7 @@ export const P = {
   overhead: pose({ rootY: -0.02, lean: -0.15, neck: -0.2, shR: 3.1, elR: 0.05, wpn: 0, shL: 0.4, elL: 0.3, hipL: -0.3, knL: -0.2, hipR: 0.35, knR: -0.25 }),
 };
 
-export type Weapon = "sword" | "club" | "bow" | "hammer" | "none";
+export type Weapon = "sword" | "club" | "bow" | "hammer" | "spear" | "dagger" | "fist" | "fan" | "none";
 
 export interface RigOptions {
   color: number;
@@ -135,7 +135,7 @@ export interface Debris {
   life: number;
 }
 
-const LIMB = 0.075;
+const LIMB = 0.045;
 const UPPER_ARM = 0.42;
 const FOREARM = 0.4;
 const THIGH = 0.5;
@@ -156,10 +156,15 @@ const GEO = {
   fore: capsule(FOREARM, LIMB),
   thigh: capsule(THIGH, LIMB * 1.1),
   shin: capsule(SHIN, LIMB),
-  torso: capsule(TORSO, LIMB * 1.25, true),
-  head: new THREE.SphereGeometry(0.19, 14, 10),
-  blade: new THREE.BoxGeometry(0.06, 1.15, 0.025).translate(0, -0.72, 0),
-  guard: new THREE.BoxGeometry(0.26, 0.05, 0.06).translate(0, -0.12, 0),
+  torso: capsule(TORSO, LIMB * 1.3, true),
+  head: new THREE.SphereGeometry(0.13, 14, 10),
+  blade: new THREE.BoxGeometry(0.03, 1.15, 0.012).translate(0, -0.72, 0),
+  guard: new THREE.BoxGeometry(0.14, 0.03, 0.04).translate(0, -0.12, 0),
+  spearShaft: new THREE.CylinderGeometry(0.014, 0.014, 1.9, 5),
+  spearTip: new THREE.ConeGeometry(0.045, 0.32, 5).rotateX(Math.PI).translate(0, -0.16, 0),
+  dagger: new THREE.BoxGeometry(0.03, 0.5, 0.01).translate(0, -0.25, 0),
+  knuckle: new THREE.BoxGeometry(0.16, 0.13, 0.13),
+  fan: new THREE.CircleGeometry(0.42, 16, -0.6, 1.2).rotateZ(-Math.PI / 2),
   club: new THREE.CylinderGeometry(0.11, 0.05, 0.75, 7).translate(0, -0.42, 0),
   hammerHandle: new THREE.CylinderGeometry(0.04, 0.04, 1.1, 6).translate(0, -0.5, 0),
   hammerHead: new THREE.BoxGeometry(0.5, 0.32, 0.32).translate(0, -1.05, 0),
@@ -230,7 +235,7 @@ export class StickRig implements Model {
       const m = new THREE.Mesh(geo, this.mat);
       if (outlineMat) {
         const o = new THREE.Mesh(geo, outlineMat);
-        o.scale.set(1.45, 1.04, 1.45);
+        o.scale.set(1.2, 1.03, 1.2);
         m.add(o);
       }
       parent.add(m);
@@ -281,9 +286,9 @@ export class StickRig implements Model {
     this.ownedMats.push(metal);
     switch (opts.weapon) {
       case "sword": {
-        const blade = new THREE.Mesh(GEO.blade, glowMat(0xbfefff, 2.4));
+        const blade = new THREE.Mesh(GEO.blade, glowMat(0xbfefff, 1.6));
         this.ownedMats.push(blade.material as THREE.Material);
-        const guard = new THREE.Mesh(GEO.guard, glowMat(0x6ad8ff, 1.6));
+        const guard = new THREE.Mesh(GEO.guard, glowMat(0xffd27a, 1.4));
         this.ownedMats.push(guard.material as THREE.Material);
         this.weapon.add(blade, guard);
         this.limbs.push(blade);
@@ -304,6 +309,42 @@ export class StickRig implements Model {
         const bow = new THREE.Mesh(GEO.bow, metal);
         bow.position.y = -FOREARM;
         this.elL.add(bow);
+        break;
+      }
+      case "spear": {
+        const shaft = new THREE.Mesh(GEO.spearShaft, metal);
+        shaft.position.y = -0.95;
+        const tip = new THREE.Mesh(GEO.spearTip, glowMat(0xdffcff, 1.8));
+        this.ownedMats.push(tip.material as THREE.Material);
+        tip.position.y = -1.9;
+        this.weapon.add(shaft, tip);
+        this.tipLocal.set(0, -2.2, 0);
+        this.baseLocal.set(0, -0.3, 0);
+        break;
+      }
+      case "dagger": {
+        const blade = new THREE.Mesh(GEO.dagger, glowMat(0xdfe8ff, 1.5));
+        this.ownedMats.push(blade.material as THREE.Material);
+        this.weapon.add(blade);
+        this.tipLocal.set(0, -0.55, 0);
+        break;
+      }
+      case "fist": {
+        const knuckle = new THREE.Mesh(GEO.knuckle, new THREE.MeshStandardMaterial({ color: 0xc9a64a, metalness: 0.7, roughness: 0.35 }));
+        this.ownedMats.push(knuckle.material as THREE.Material);
+        knuckle.position.y = -0.05;
+        this.weapon.add(knuckle);
+        this.tipLocal.set(0, -0.1, 0);
+        this.baseLocal.set(0, 0, 0);
+        break;
+      }
+      case "fan": {
+        const fan = new THREE.Mesh(GEO.fan, new THREE.MeshBasicMaterial({ color: new THREE.Color(0xfff4e0).multiplyScalar(1.2), side: THREE.DoubleSide }));
+        this.ownedMats.push(fan.material as THREE.Material);
+        fan.position.y = -0.05;
+        this.weapon.add(fan);
+        this.tipLocal.set(0, -0.42, 0);
+        this.baseLocal.set(0, -0.05, 0);
         break;
       }
       case "none":
