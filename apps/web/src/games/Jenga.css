@@ -1,0 +1,216 @@
+.jg-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.jg-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jg-head h2 {
+  flex: 1;
+}
+
+.jg-height {
+  font-size: 13px;
+  color: #8a5a22;
+  background: #fbefdc;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.jg-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.jg-players li {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f4efe8;
+  font-size: 14px;
+}
+
+.jg-players li.current {
+  background: #fbe3b8;
+  box-shadow: 0 0 0 2px #c8873a;
+}
+
+.jg-players li.loser {
+  background: #fde0e0;
+  box-shadow: 0 0 0 2px #e53170;
+}
+
+/* 3D 画布：上方暖光、下方暗，像台灯下的桌子 */
+.jg-stage {
+  position: relative;
+  height: min(58vh, 520px);
+  min-height: 300px;
+  margin: 0 -8px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 20%, #fff2d8 0%, #d9b98a 45%, #5b3d22 100%);
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.25);
+  transition: box-shadow 0.3s;
+}
+
+.jg-stage.my-turn {
+  box-shadow:
+    inset 0 0 0 3px #c8873a,
+    inset 0 0 30px rgba(0, 0, 0, 0.25);
+}
+
+.jg-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.jg-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: #fff;
+}
+
+.jg-status {
+  text-align: center;
+}
+
+.jg-end-text {
+  font-size: 22px;
+}
+
+.jg-selected {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.jg-selected .row button,
+.jg-meter .row button {
+  flex: 1;
+}
+
+.jg-risk {
+  align-self: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+.jg-risk.low {
+  background: #dff5e3;
+  color: #23702c;
+}
+
+.jg-risk.mid {
+  background: #fff3c4;
+  color: #8a6a00;
+}
+
+.jg-risk.high {
+  background: #fde0d0;
+  color: #b4441a;
+}
+
+.jg-risk.doom {
+  background: #fdd;
+  color: #b0102a;
+  font-weight: bold;
+}
+
+.jg-pull-btn {
+  background: #c8873a;
+  font-weight: bold;
+  box-shadow: 0 3px 0 #8a5a22;
+}
+
+.jg-pull-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #8a5a22;
+}
+
+/* ---------- 手稳小游戏 ---------- */
+.jg-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #fbefdc;
+  animation: jg-rise 0.25s ease-out;
+}
+
+.jg-meter-label {
+  text-align: center;
+  font-size: 14px;
+  color: #8a5a22;
+}
+
+.jg-meter-bar {
+  position: relative;
+  height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #e53170, #f5a623 30%, #3aa845 46%, #3aa845 54%, #f5a623 70%, #e53170);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.jg-meter-zone {
+  position: absolute;
+  left: 46%;
+  width: 8%;
+  top: -4px;
+  bottom: -4px;
+  border: 2px solid #fff;
+  border-radius: 6px;
+}
+
+.jg-meter-needle {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 6px;
+  margin-left: -3px;
+  border-radius: 3px;
+  background: #16161a;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.jg-meter .jg-pull-btn {
+  font-size: 20px;
+  padding: 14px;
+  touch-action: manipulation;
+}
+
+.jg-result {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.jg-result li.loser {
+  color: #e53170;
+  font-weight: bold;
+}
+
+@keyframes jg-rise {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}

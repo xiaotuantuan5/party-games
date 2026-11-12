@@ -200,6 +200,97 @@ export const sfx = {
     [392, 370, 349].forEach((f, i) => tone(f, 0.28, { type: "sawtooth", gain: 0.06, delay: 0.9 + i * 0.3 }));
     tone(330, 0.8, { type: "sawtooth", slideTo: 300, gain: 0.06, delay: 1.8 });
   },
+  /** UNO 变色牌：一圈上行的音阶 */
+  wild() {
+    [523, 659, 784, 988, 1175].forEach((f, i) => tone(f, 0.16, { type: "triangle", gain: 0.13, delay: i * 0.05 }));
+  },
+  /** UNO 反转：先降后升 */
+  reverse() {
+    tone(900, 0.14, { type: "triangle", slideTo: 400, gain: 0.16 });
+    tone(400, 0.16, { type: "triangle", slideTo: 900, gain: 0.16, delay: 0.14 });
+  },
+  /** 喊 UNO：两声短促的号角 */
+  unoShout() {
+    tone(660, 0.12, { type: "sawtooth", gain: 0.09 });
+    tone(990, 0.28, { type: "sawtooth", gain: 0.09, delay: 0.12 });
+  },
+  /** 被抓没喊 UNO：警笛 */
+  caught() {
+    for (let i = 0; i < 3; i++) {
+      tone(700, 0.15, { type: "square", slideTo: 1100, gain: 0.07, delay: i * 0.3 });
+      tone(1100, 0.15, { type: "square", slideTo: 700, gain: 0.07, delay: i * 0.3 + 0.15 });
+    }
+  },
+  /** 层层叠：轻敲木块 */
+  woodTap() {
+    tone(1400, 0.05, { type: "triangle", gain: 0.12 });
+    noise(0.03, { filter: "bandpass", from: 2500, to: 1800, gain: 0.12 });
+  },
+  /** 层层叠：木块和木块摩擦着被抽出来 */
+  woodSlide(dur = 0.7) {
+    noise(dur, { filter: "bandpass", from: 900, to: 500, gain: 0.12 });
+    tone(140, dur, { type: "sawtooth", slideTo: 110, gain: 0.025 });
+  },
+  /** 层层叠：木块放到塔顶 */
+  woodPlace() {
+    tone(420, 0.08, { type: "triangle", gain: 0.25 });
+    noise(0.05, { filter: "bandpass", from: 1500, to: 800, gain: 0.25 });
+  },
+  /** 层层叠：整座塔哗啦倒下 */
+  towerCollapse() {
+    noise(1.6, { filter: "lowpass", from: 2500, to: 80, gain: 0.5 });
+    for (let i = 0; i < 26; i++) {
+      const d = 0.15 + Math.pow(Math.random(), 0.7) * 1.6;
+      tone(300 + Math.random() * 500, 0.06, { type: "triangle", gain: 0.12 + Math.random() * 0.12, delay: d });
+    }
+  },
+  /** 层层叠：塔有点晃时的吱呀声 */
+  creak() {
+    tone(180, 0.5, { type: "sawtooth", slideTo: 140, gain: 0.03 });
+  },
+  /** 狼人杀：天黑，低沉的下行音加一声狼嚎 */
+  night() {
+    [392, 330, 262, 196].forEach((f, i) => tone(f, 0.5, { type: "sine", gain: 0.12, delay: i * 0.18 }));
+    tone(420, 1.1, { type: "sawtooth", slideTo: 620, gain: 0.03, delay: 0.9 });
+    tone(620, 0.7, { type: "sawtooth", slideTo: 380, gain: 0.03, delay: 2.0 });
+  },
+  /** 狼人杀：天亮，明亮的上行音 */
+  dawn() {
+    [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, { type: "triangle", gain: 0.14, delay: i * 0.12 }));
+  },
+  /** 星际穿梭：激光，很轻，因为自动开火很密 */
+  laser() {
+    tone(1700, 0.06, { type: "triangle", slideTo: 500, gain: 0.025 });
+  },
+  /** 星际穿梭：打中但没打碎 */
+  hitRock() {
+    noise(0.04, { filter: "bandpass", from: 2200, to: 1200, gain: 0.08 });
+  },
+  /** 星际穿梭：打碎陨石 / 敌机 */
+  rockBreak() {
+    noise(0.35, { filter: "lowpass", from: 2400, to: 120, gain: 0.3 });
+    tone(110, 0.3, { slideTo: 45, gain: 0.25 });
+  },
+  /** 星际穿梭：飞船被击中 */
+  playerHit() {
+    noise(0.3, { filter: "bandpass", from: 3000, to: 400, gain: 0.35 });
+    tone(220, 0.3, { type: "square", slideTo: 70, gain: 0.12 });
+  },
+  /** 星际穿梭：护盾被打碎 */
+  shieldBreak() {
+    for (let i = 0; i < 5; i++) tone(2400 - i * 300, 0.08, { type: "triangle", gain: 0.1, delay: i * 0.035 });
+  },
+  /** 星际穿梭：吃到能量块 */
+  powerup() {
+    [660, 880, 1100, 1320, 1760].forEach((f, i) => tone(f, 0.12, { type: "square", gain: 0.05, delay: i * 0.05 }));
+  },
+  /** 星际穿梭：Boss 来袭警报 */
+  bossWarning() {
+    for (let i = 0; i < 3; i++) {
+      tone(330, 0.35, { type: "sawtooth", slideTo: 660, gain: 0.07, delay: i * 0.75 });
+      tone(660, 0.35, { type: "sawtooth", slideTo: 330, gain: 0.07, delay: i * 0.75 + 0.35 });
+    }
+  },
   myTurn() {
     tone(880, 0.12, { gain: 0.14 });
     tone(1175, 0.2, { gain: 0.14, delay: 0.12 });

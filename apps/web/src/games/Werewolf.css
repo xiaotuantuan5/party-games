@@ -1,0 +1,344 @@
+/* 夜里整个游戏区变暗，白天恢复 */
+.ww-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: -8px;
+  padding: 8px;
+  border-radius: 14px;
+  transition:
+    background 1.2s,
+    color 1.2s;
+}
+
+.ww-root.is-night {
+  background: radial-gradient(circle at 80% 0%, #3b3f78 0%, #16163a 55%, #0b0b1e 100%);
+  color: #e6e6ff;
+}
+
+.ww-root.is-night .hint,
+.ww-root.is-night .history {
+  color: #b8b8e0;
+}
+
+.ww-root.is-day {
+  background: linear-gradient(180deg, #fff6dc 0%, #fff 40%);
+}
+
+.ww-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ww-head h2 {
+  flex: 1;
+}
+
+.ww-phase {
+  font-size: 14px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(127, 90, 240, 0.15);
+}
+
+.is-night .ww-phase {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ---------- 身份牌 ---------- */
+.ww-role {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  text-align: left;
+  background: repeating-linear-gradient(45deg, #3d348b 0 10px, #332b78 10px 20px);
+  color: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+}
+
+.ww-role.open {
+  background: #fff;
+  color: #16161a;
+  box-shadow:
+    0 0 0 2px #3d348b,
+    0 4px 0 rgba(0, 0, 0, 0.2);
+  animation: ww-flip 0.35s ease-out;
+}
+
+.ww-role.open.r-wolf {
+  background: #fde8e8;
+  box-shadow:
+    0 0 0 2px #b0102a,
+    0 4px 0 rgba(0, 0, 0, 0.2);
+}
+
+.ww-role-hidden {
+  flex: 1;
+  text-align: center;
+}
+
+.ww-role-emoji {
+  font-size: 40px;
+}
+
+.ww-role-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.ww-role-text strong {
+  font-size: 17px;
+}
+
+.ww-role-text small {
+  font-weight: normal;
+  font-size: 12px;
+  color: #666;
+}
+
+.ww-status {
+  margin: 0;
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.ww-end-text {
+  animation: ww-pop 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.4);
+}
+
+.ww-dawn {
+  margin: 0;
+  text-align: center;
+  padding: 6px;
+  border-radius: 8px;
+  background: #fff0d0;
+}
+
+/* ---------- 座位 ---------- */
+.ww-seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.ww-seat {
+  position: relative;
+  width: 100%;
+  padding: 8px 2px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border-radius: 10px;
+  background: rgba(127, 90, 240, 0.08);
+  color: inherit;
+  font-size: 12px;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+
+.is-night .ww-seat {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.ww-seat:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.ww-seat.can {
+  cursor: pointer;
+  box-shadow: 0 0 0 2px rgba(127, 90, 240, 0.5);
+}
+
+.is-night .ww-seat.can {
+  box-shadow: 0 0 0 2px rgba(255, 90, 90, 0.6);
+}
+
+.ww-seat.selected {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 3px #e53170 !important;
+  background: rgba(229, 49, 112, 0.15);
+}
+
+.ww-seat.dead {
+  filter: grayscale(1);
+  opacity: 0.45 !important;
+}
+
+.ww-seat.hunter {
+  box-shadow: 0 0 0 3px #f5a623;
+  animation: ww-pulse 1s ease-in-out infinite;
+}
+
+.ww-seat-no {
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.ww-seat-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ww-seat-tags {
+  min-height: 16px;
+  font-size: 13px;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.ww-check {
+  font-size: 11px;
+  padding: 0 4px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.ww-check.wolf {
+  background: #b0102a;
+}
+
+.ww-check.good {
+  background: #3aa845;
+}
+
+.ww-seat-knife {
+  font-size: 10px;
+  color: #ff8a8a;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 操作面板 ---------- */
+.ww-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(127, 90, 240, 0.08);
+  animation: ww-rise 0.25s ease-out;
+}
+
+.is-night .ww-panel {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ww-panel p {
+  margin: 0;
+}
+
+.ww-witch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ww-witch-actions button {
+  flex: 1;
+  min-width: 120px;
+}
+
+.ww-save {
+  background: #3aa845;
+}
+
+.ww-poison {
+  background: #b0102a;
+}
+
+.ww-seer-result {
+  margin: 0;
+  padding: 10px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 10px;
+  animation: ww-pop 0.4s ease-out;
+}
+
+.ww-seer-result.wolf {
+  background: #b0102a;
+  color: #fff;
+}
+
+.ww-seer-result.good {
+  background: #3aa845;
+  color: #fff;
+}
+
+.ww-speak {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.ww-speak .done {
+  color: #3aa845;
+}
+
+.ww-votes h3 {
+  font-size: 14px;
+}
+
+.ww-votes ul,
+.ww-reveal {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+
+.ww-reveal li.won {
+  font-weight: bold;
+}
+
+@keyframes ww-flip {
+  from {
+    transform: rotateY(90deg);
+  }
+}
+
+@keyframes ww-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+@keyframes ww-rise {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+}
+
+@keyframes ww-pulse {
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ww-seat.hunter {
+    animation: none;
+  }
+}

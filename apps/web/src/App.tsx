@@ -1,17 +1,35 @@
-import { useRef, useState, type CSSProperties } from "react";
+import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
 import { GAME_ORDER, GAMES, type GameId, type RoomView } from "@party/shared";
 import { Avatar, GameCard, GameDetail, Sheet, randomName } from "./components";
 import { BombCat } from "./games/BombCat";
 import { LiarsBar } from "./games/LiarsBar";
 import { NumberBomb } from "./games/NumberBomb";
 import { Undercover } from "./games/Undercover";
+import { Uno } from "./games/Uno";
+import { Werewolf } from "./games/Werewolf";
 import { useParty, savedName, type PartyActions } from "./party";
+import { SOLO_GAMES, SOLO_ORDER, getBest, type SoloGameId } from "./solo/soloGames";
 import { useRun, type GameProps } from "./ui";
 
-const NEW_GAMES: GameId[] = ["liarsBar"];
+// 3D 层层叠依赖 three.js 和物理引擎，体积较大，进入游戏时才加载
+const Jenga = lazy(() => import("./games/Jenga").then((m) => ({ default: m.Jenga })));
+
+// 单人游戏同样依赖 three.js，点开时才加载
+const SpaceShooter = lazy(() => import("./solo/SpaceShooter").then((m) => ({ default: m.SpaceShooter })));
+
+const NEW_GAMES: GameId[] = ["werewolf", "uno", "jenga"];
 
 export function App() {
   const { room, me, connected, notice, clearNotice, actions } = useParty();
+  const [solo, setSolo] = useState<SoloGameId | null>(null);
+
+  if (solo) {
+    return (
+      <Suspense fallback={<div className="solo-loading">🚀 正在加载…</div>}>
+        {solo === "spaceShooter" && <SpaceShooter onExit={() => setSolo(null)} />}
+      </Suspense>
+    );
+  }
 
   return (
     <div className="app">
@@ -21,12 +39,12 @@ export function App() {
           {notice}
         </div>
       )}
-      {!room || !me ? <Home actions={actions} /> : <RoomScreen room={room} me={me} actions={actions} />}
+      {!room || !me ? <Home actions={actions} onSolo={setSolo} /> : <RoomScreen room={room} me={me} actions={actions} />}
     </div>
   );
 }
 
-function Home({ actions }: { actions: PartyActions }) {
+function Home({ actions, onSolo }: { actions: PartyActions; onSolo: (id: SoloGameId) => void }) {
   const invited = (new URLSearchParams(location.search).get("room") ?? "").toUpperCase();
   const [name, setName] = useState(savedName());
   const [code, setCode] = useState(invited);
@@ -96,6 +114,35 @@ function Home({ actions }: { actions: PartyActions }) {
           <GameCard key={id} meta={GAMES[id]} isNew={NEW_GAMES.includes(id)} onClick={() => setDetail(id)} />
         ))}
       </div>
+
+      <h2 className="section-title">一个人玩</h2>
+      {SOLO_ORDER.map((id) => {
+        const meta = SOLO_GAMES[id];
+        const best = getBest(id);
+        return (
+          <button
+            key={id}
+            type="button"
+            className="solo-card"
+            style={{ "--c": meta.color } as CSSProperties}
+            onClick={() => onSolo(id)}
+          >
+            <span className="solo-card-emoji">{meta.emoji}</span>
+            <span className="solo-card-info">
+              <span className="solo-card-name">
+                {meta.name}
+                <span className="solo-card-new">NEW</span>
+              </span>
+              <span className="solo-card-tagline">{meta.tagline}</span>
+              <span className="solo-card-meta">
+                👤 单人 · {meta.tags.slice(0, 2).join(" · ")}
+                {best > 0 && ` · 🏆 ${best.toLocaleString()}`}
+              </span>
+            </span>
+            <span className="solo-card-go">▶</span>
+          </button>
+        );
+      })}
 
       {!invited && (
         <section className="panel join-panel">
@@ -214,6 +261,13 @@ function RoomScreen({ room, me, actions }: GameProps) {
             )}
             {room.game.gameId === "bombCat" && <BombCat room={room} me={me} actions={actions} />}
             {room.game.gameId === "liarsBar" && <LiarsBar room={room} me={me} actions={actions} />}
+            {room.game.gameId === "uno" && <Uno room={room} me={me} actions={actions} />}
+            {room.game.gameId === "werewolf" && <Werewolf room={room} me={me} actions={actions} />}
+            {room.game.gameId === "jenga" && (
+              <Suspense fallback={<p className="hint center">正在搭木塔…</p>}>
+                <Jenga room={room} me={me} actions={actions} />
+              </Suspense>
+            )}
           </div>
 
           {room.game.phase === "ended" ? (
