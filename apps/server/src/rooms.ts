@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   GAMES,
+  MAX_AVATAR_DATA_URL_LENGTH,
   MAX_NAME_LENGTH,
   MAX_PLAYERS_PER_ROOM,
   type GameAction,
@@ -12,8 +13,16 @@ import {
 import { ENGINES } from "./games/index.js";
 import { GameError, type AnyGameEngine } from "./games/types.js";
 
-interface Player extends PlayerInfo {
+export interface Avatar {
+  mime: string;
+  data: Buffer;
+  /** 内容哈希，放在图片地址里，换头像后浏览器不会用旧缓存 */
+  version: string;
+}
+
+interface Player extends Omit<PlayerInfo, "avatar"> {
   socketId: string | null;
+  avatar: Avatar | null;
 }
 
 interface Room {
@@ -46,6 +55,25 @@ export function validateName(raw: unknown): string {
   return name;
 }
 
+const AVATAR_TYPES: Record<string, (b: Buffer) => boolean> = {
+  "image/jpeg": (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  "image/png": (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+  "image/webp": (b) => b.toString("latin1", 0, 4) === "RIFF" && b.toString("latin1", 8, 12) === "WEBP",
+};
+
+/** 头像是可选的：没传或传空就是没有头像；传了就必须是合法的小图片 */
+export function validateAvatar(raw: unknown): Avatar | null {
+  if (raw === undefined || raw === null || raw === "") return null;
+  if (typeof raw !== "string" || raw.length > MAX_AVATAR_DATA_URL_LENGTH) throw new GameError("头像图片太大了");
+  const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(raw);
+  if (!m) throw new GameError("头像格式不对");
+  const mime = m[1]!;
+  const data = Buffer.from(m[2]!, "base64");
+  // 按文件头再确认一次，不信任客户端声明的类型
+  if (!AVATAR_TYPES[mime]!(data)) throw new GameError("头像格式不对");
+  return { mime, data, version: createHash("sha256").update(data).digest("hex").slice(0, 12) };
+}
+
 export function validateToken(raw: unknown): string {
   if (typeof raw !== "string" || raw.length < 16 || raw.length > 128) throw new GameError("无效的身份凭证");
   return raw;
@@ -61,12 +89,12 @@ export class RoomManager {
     return this.rooms.get(code.toUpperCase());
   }
 
-  create(playerId: string, name: string, socketId: string, gameId?: unknown): Room {
+  create(playerId: string, name: string, avatar: Avatar | null, socketId: string, gameId?: unknown): Room {
     const code = this.newCode();
     const room: Room = {
       code,
       hostId: playerId,
-      players: [{ id: playerId, name, connected: true, socketId }],
+      players: [{ id: playerId, name, avatar, connected: true, socketId }],
       selectedGame: typeof gameId === "string" && gameId in GAMES ? (gameId as GameId) : "numberBomb",
       game: null,
       gameNo: 0,
@@ -77,7 +105,13 @@ export class RoomManager {
     return room;
   }
 
-  join(code: string, playerId: string, name: string, socketId: string): { room: Room; replacedSocketId: string | null } {
+  join(
+    code: string,
+    playerId: string,
+    name: string,
+    avatar: Avatar | null,
+    socketId: string,
+  ): { room: Room; replacedSocketId: string | null } {
     const room = this.get(code);
     if (!room) throw new GameError("房间不存在");
 
@@ -89,11 +123,12 @@ export class RoomManager {
       existing.socketId = socketId;
       existing.connected = true;
       existing.name = name;
+      existing.avatar = avatar;
     } else {
       if (room.game) throw new GameError("游戏进行中，请等这局结束后再加入");
       if (room.players.length >= MAX_PLAYERS_PER_ROOM) throw new GameError("房间已满");
       if (room.players.some((p) => p.name === name)) throw new GameError("这个昵称已经有人用了");
-      room.players.push({ id: playerId, name, connected: true, socketId });
+      room.players.push({ id: playerId, name, avatar, connected: true, socketId });
     }
 
     if (room.cleanupTimer) {
@@ -199,11 +234,21 @@ export class RoomManager {
     this.start(code, playerId);
   }
 
+  /** 只有房间里的玩家的头像才能取到，房间解散或玩家退出后就没了 */
+  avatar(code: string, playerId: string): Avatar | null {
+    return this.get(code)?.players.find((p) => p.id === playerId)?.avatar ?? null;
+  }
+
   viewFor(room: Room, playerId: string): RoomView {
     return {
       code: room.code,
       hostId: room.hostId,
-      players: room.players.map(({ id, name, connected }) => ({ id, name, connected })),
+      players: room.players.map(({ id, name, connected, avatar }) => ({
+        id,
+        name,
+        connected,
+        avatar: avatar ? `/avatars/${room.code}/${id}?v=${avatar.version}` : null,
+      })),
       selectedGame: room.selectedGame,
       gameNo: room.gameNo,
       game: room.game ? room.game.engine.viewFor(room.game.state, playerId) : null,

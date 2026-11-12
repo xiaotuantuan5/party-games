@@ -220,12 +220,6 @@ button.link {
   box-shadow: none;
 }
 
-.icon-btn {
-  padding: 8px 10px;
-  font-size: 20px;
-  background: #f2f0ff;
-}
-
 button.link.danger {
   color: #e53170;
 }
@@ -351,20 +345,75 @@ button.link.danger {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
 }
 
-.me-panel input {
-  border: none;
-  font-size: 18px;
-  font-weight: bold;
-  padding: 6px 4px;
+/* 首页最上方的头像 + 昵称，一条细栏 */
+.profile-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
-.me-panel input:focus {
+.profile-bar.invalid {
+  box-shadow: 0 0 0 3px #e53170;
+  animation: shake-x 0.35s;
+}
+
+.profile-avatar {
+  position: relative;
+  padding: 0;
+  background: none;
+  border-radius: 50%;
+  line-height: 0;
+}
+
+.profile-avatar .avatar {
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.profile-avatar-edit {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.profile-name {
+  flex: 1;
+  border: none;
+  padding: 6px 4px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #fff;
+  background: transparent;
+}
+
+.profile-name::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.profile-name:focus {
   outline: none;
 }
 
-.me-panel.invalid {
-  box-shadow: 0 0 0 3px #e53170;
-  animation: shake-x 0.35s;
+.profile-btn {
+  padding: 4px 8px;
+  font-size: 15px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+img.avatar {
+  object-fit: cover;
+  background: #ddd;
 }
 
 .invite-panel {
@@ -549,34 +598,36 @@ button.link.danger {
 }
 
 /* ================= 房间 ================= */
+/* 卡片外的一条细栏：左边退出，右边规则 / 邀请 / 房间号 */
 .room-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: -6px -6px 0;
-}
-
-.code-chip {
-  padding: 6px 12px;
-  font-size: 14px;
-  color: #444;
-  background: #f2f0ff;
-  border-radius: 999px;
-}
-
-.code-chip strong {
-  margin-left: 2px;
-  letter-spacing: 3px;
-  font-size: 16px;
-  color: #16161a;
+  margin: -8px -4px 6px;
 }
 
 .room-bar-actions {
   display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.room-bar-actions .link {
-  padding: 4px 6px;
+.room-bar-btn {
+  padding: 4px 8px;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+.room-code {
+  padding: 3px 8px;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: #7f5af0;
+  background: #fff;
+  border-radius: 6px;
 }
 
 .lobby {
@@ -723,7 +774,7 @@ button.link.danger {
   .sheet,
   .sheet-backdrop,
   .player-list li,
-  .me-panel.invalid {
+  .profile-bar.invalid {
     animation: none;
   }
 }

@@ -9,13 +9,13 @@ import type {
   RoomView,
   ServerToClientEvents,
 } from "@party/shared";
+import { saveName, savedAvatar, savedName } from "./profile";
 
 type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 const socket: AppSocket = io({ autoConnect: true });
 
 const TOKEN_KEY = "party.token";
-const NAME_KEY = "party.name";
 const ROOM_KEY = "party.room";
 
 function getToken(): string {
@@ -40,9 +40,6 @@ export function onMove(cb: (playerId: string, move: QuestMove) => void): () => v
   };
 }
 
-export function savedName(): string {
-  return localStorage.getItem(NAME_KEY) ?? "";
-}
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -59,7 +56,7 @@ export function useParty() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const enter = useCallback((res: JoinResult, name: string) => {
-    localStorage.setItem(NAME_KEY, name);
+    saveName(name);
     localStorage.setItem(ROOM_KEY, res.code);
     setMe(res.playerId);
     history.replaceState(null, "", `?room=${res.code}`);
@@ -71,7 +68,7 @@ export function useParty() {
       const code = localStorage.getItem(ROOM_KEY);
       const name = savedName();
       if (!code || !name) return;
-      socket.emit("room:join", { token: getToken(), name, code }, (res) => {
+      socket.emit("room:join", { token: getToken(), name, avatar: savedAvatar(), code }, (res) => {
         if (res.ok) enter(res.data, name);
         else {
           localStorage.removeItem(ROOM_KEY);
@@ -102,12 +99,12 @@ export function useParty() {
   const actions = {
     create: (name: string, gameId?: GameId) =>
       socket
-        .emitWithAck("room:create", { token: getToken(), name, gameId })
+        .emitWithAck("room:create", { token: getToken(), name, avatar: savedAvatar(), gameId })
         .then(unwrap)
         .then((r) => enter(r, name.trim())),
     join: (name: string, code: string) =>
       socket
-        .emitWithAck("room:join", { token: getToken(), name, code })
+        .emitWithAck("room:join", { token: getToken(), name, avatar: savedAvatar(), code })
         .then(unwrap)
         .then((r) => enter(r, name.trim())),
     leave: () => {

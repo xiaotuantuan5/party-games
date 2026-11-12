@@ -6,7 +6,7 @@ import express from "express";
 import { Server, type Socket } from "socket.io";
 import type { Ack, ClientToServerEvents, ServerToClientEvents } from "@party/shared";
 import { GameError } from "./games/types.js";
-import { RoomManager, playerIdFromToken, validateName, validateToken } from "./rooms.js";
+import { RoomManager, playerIdFromToken, validateAvatar, validateName, validateToken } from "./rooms.js";
 
 interface SocketData {
   playerId?: string;
@@ -69,9 +69,10 @@ io.on("connection", (socket: AppSocket) => {
     handle(ack, () => {
       const token = validateToken(p?.token);
       const name = validateName(p?.name);
+      const avatar = validateAvatar(p?.avatar);
       leaveCurrent(socket);
       const playerId = playerIdFromToken(token);
-      const room = rooms.create(playerId, name, socket.id, p?.gameId);
+      const room = rooms.create(playerId, name, avatar, socket.id, p?.gameId);
       socket.data = { playerId, roomCode: room.code };
       return { code: room.code, playerId };
     }),
@@ -81,10 +82,11 @@ io.on("connection", (socket: AppSocket) => {
     handle(ack, () => {
       const token = validateToken(p?.token);
       const name = validateName(p?.name);
+      const avatar = validateAvatar(p?.avatar);
       const code = typeof p?.code === "string" ? p.code.trim().toUpperCase() : "";
       if (socket.data.roomCode && socket.data.roomCode !== code) leaveCurrent(socket);
       const playerId = playerIdFromToken(token);
-      const { room, replacedSocketId } = rooms.join(code, playerId, name, socket.id);
+      const { room, replacedSocketId } = rooms.join(code, playerId, name, avatar, socket.id);
       if (replacedSocketId) {
         io.to(replacedSocketId).emit("room:closed", "你在另一个页面进入了这个房间");
         io.in(replacedSocketId).disconnectSockets(true);
@@ -149,6 +151,21 @@ io.on("connection", (socket: AppSocket) => {
     const { roomCode, playerId } = socket.data;
     if (roomCode && playerId) rooms.disconnect(roomCode, playerId, socket.id);
   });
+});
+
+// 头像图片。地址里带内容哈希，可以放心长期缓存
+app.get("/avatars/:code/:playerId", (req, res) => {
+  const avatar = rooms.avatar(req.params.code, req.params.playerId);
+  if (!avatar) {
+    res.status(404).end();
+    return;
+  }
+  res.set({
+    "Content-Type": avatar.mime,
+    "Cache-Control": "public, max-age=86400, immutable",
+    "X-Content-Type-Options": "nosniff",
+  });
+  res.send(avatar.data);
 });
 
 // 生产环境：同一个端口同时提供前端静态文件

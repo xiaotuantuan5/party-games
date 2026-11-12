@@ -2,11 +2,15 @@ import type { GameId, GameView, GameAction, QuestMove } from "./games/index.js";
 
 export const MAX_PLAYERS_PER_ROOM = 12;
 export const MAX_NAME_LENGTH = 12;
+/** 头像以 data URL 上传，前端压缩到 96×96 JPEG，一般只有几 KB */
+export const MAX_AVATAR_DATA_URL_LENGTH = 14_000;
 
 export interface PlayerInfo {
   id: string;
   name: string;
   connected: boolean;
+  /** 头像图片地址（服务端提供），没上传就是 null，前端用昵称首字代替 */
+  avatar?: string | null;
 }
 
 /** 房间状态。服务端按玩家分别下发，game 字段只包含该玩家可见的信息。 */
@@ -32,8 +36,8 @@ export interface JoinResult {
 export interface ClientToServerEvents {
   /** token 是客户端本地生成并保存的随机串，用于断线重连时识别身份，不会下发给其他人 */
   /** gameId：从首页某个游戏卡片直接开房时预先选好游戏 */
-  "room:create": (p: { token: string; name: string; gameId?: GameId }, ack: Ack<JoinResult>) => void;
-  "room:join": (p: { token: string; name: string; code: string }, ack: Ack<JoinResult>) => void;
+  "room:create": (p: { token: string; name: string; avatar?: string | null; gameId?: GameId }, ack: Ack<JoinResult>) => void;
+  "room:join": (p: { token: string; name: string; avatar?: string | null; code: string }, ack: Ack<JoinResult>) => void;
   "room:leave": () => void;
   "room:selectGame": (p: { gameId: GameId }, ack: Ack) => void;
   "game:start": (ack: Ack) => void;

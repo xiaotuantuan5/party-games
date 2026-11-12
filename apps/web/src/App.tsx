@@ -1,6 +1,6 @@
-import { Suspense, lazy, useRef, useState, type CSSProperties } from "react";
+import { Suspense, lazy, useMemo, useRef, useState, type CSSProperties } from "react";
 import { GAME_ORDER, GAMES, type GameId, type RoomView } from "@party/shared";
-import { Avatar, GameCard, GameDetail, Sheet, randomName } from "./components";
+import { Avatar, AvatarContext, GameCard, GameDetail, Sheet, randomName } from "./components";
 import { Avalon } from "./games/Avalon";
 import { BombCat } from "./games/BombCat";
 import { LiarsBar } from "./games/LiarsBar";
@@ -8,7 +8,8 @@ import { NumberBomb } from "./games/NumberBomb";
 import { Undercover } from "./games/Undercover";
 import { Uno } from "./games/Uno";
 import { Werewolf } from "./games/Werewolf";
-import { useParty, savedName, type PartyActions } from "./party";
+import { useParty, type PartyActions } from "./party";
+import { compressAvatar, saveAvatar, saveName, savedAvatar, savedName } from "./profile";
 import { SOLO_GAMES, SOLO_ORDER, getBest, type SoloGameId } from "./solo/soloGames";
 import { useRun, type GameProps } from "./ui";
 
@@ -42,8 +43,95 @@ export function App() {
           {notice}
         </div>
       )}
-      {!room || !me ? <Home actions={actions} onSolo={setSolo} /> : <RoomScreen room={room} me={me} actions={actions} />}
+      {!room || !me ? (
+        <Home actions={actions} onSolo={setSolo} />
+      ) : (
+        <RoomAvatars room={room}>
+          <RoomScreen room={room} me={me} actions={actions} />
+        </RoomAvatars>
+      )}
     </div>
+  );
+}
+
+/** 把房间里所有人的头像交给各游戏的 Avatar 组件 */
+function RoomAvatars({ room, children }: { room: RoomView; children: React.ReactNode }) {
+  const map = useMemo(() => new Map(room.players.flatMap((p) => (p.avatar ? [[p.id, p.avatar] as const] : []))), [room.players]);
+  return <AvatarContext.Provider value={map}>{children}</AvatarContext.Provider>;
+}
+
+/** 首页最上方的一条：头像（点一下换图）+ 昵称，改了马上存到本机 */
+function ProfileBar({
+  name,
+  onName,
+  invalid,
+  nameRef,
+}: {
+  name: string;
+  onName: (v: string) => void;
+  invalid: boolean;
+  nameRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  const [avatar, setAvatar] = useState(savedAvatar());
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    setAvatarError(null);
+    try {
+      const url = await compressAvatar(file);
+      saveAvatar(url);
+      setAvatar(url);
+    } catch (e) {
+      setAvatarError((e as Error).message);
+    }
+  };
+  const clear = () => {
+    saveAvatar(null);
+    setAvatar(null);
+  };
+
+  return (
+    <>
+      <header className={`profile-bar ${invalid ? "invalid" : ""}`}>
+        <button type="button" className="profile-avatar" title="换头像" onClick={() => fileRef.current?.click()}>
+          <Avatar name={name || "?"} seed={name || "?"} src={avatar} size={34} />
+          <span className="profile-avatar-edit" aria-hidden>
+            📷
+          </span>
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            void pick(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={nameRef}
+          className="profile-name"
+          value={name}
+          maxLength={12}
+          placeholder="点这里起个昵称"
+          aria-label="昵称"
+          onChange={(e) => onName(e.target.value)}
+        />
+        {avatar && (
+          <button type="button" className="profile-btn" title="去掉头像" onClick={clear}>
+            ×
+          </button>
+        )}
+        <button type="button" className="profile-btn" title="随机一个昵称" onClick={() => onName(randomName())}>
+          🎲
+        </button>
+      </header>
+      {invalid && <p className="error">先起个昵称，朋友才知道你是谁</p>}
+      {avatarError && <p className="error">{avatarError}</p>}
+    </>
   );
 }
 
@@ -74,11 +162,18 @@ function Home({ actions, onSolo }: { actions: PartyActions; onSolo: (id: SoloGam
     nameRef.current?.focus();
     return false;
   };
+  const changeName = (v: string) => {
+    setName(v);
+    setNameError(false);
+    saveName(v);
+  };
   const create = (gameId: GameId) => requireName() && run(actions.create(name, gameId));
   const join = () => requireName() && run(actions.join(name, code));
 
   return (
     <main className="home">
+      <ProfileBar name={name} onName={changeName} invalid={nameError} nameRef={nameRef} />
+
       <header className="hero">
         <h1>🎉 聚会小游戏</h1>
         <p>手机打开就能玩，开个房间把链接发给朋友</p>
@@ -107,33 +202,6 @@ function Home({ actions, onSolo }: { actions: PartyActions; onSolo: (id: SoloGam
 
       {tab === "multi" ? (
         <>
-          <section className={`panel me-panel ${nameError ? "invalid" : ""}`}>
-            <Avatar name={name || "?"} seed={name || "?"} size={44} />
-            <input
-              ref={nameRef}
-              value={name}
-              maxLength={12}
-              placeholder="先起个昵称"
-              aria-label="昵称"
-              onChange={(e) => {
-                setName(e.target.value);
-                setNameError(false);
-              }}
-            />
-            <button
-              type="button"
-              className="icon-btn"
-              title="随机一个昵称"
-              onClick={() => {
-                setName(randomName());
-                setNameError(false);
-              }}
-            >
-              🎲
-            </button>
-          </section>
-          {nameError && <p className="error">先起个昵称，朋友才知道你是谁</p>}
-
           {invited ? (
             <section className="panel invite-panel">
               <div>
@@ -275,146 +343,152 @@ function RoomScreen({ room, me, actions }: GameProps) {
   const tooMany = n > meta.maxPlayers;
 
   return (
-    <main className="card room">
+    <>
+      {/* 房间操作放在卡片外的一条细栏里，房间号缩成右上角的小标签，把空间留给游戏 */}
       <header className="room-bar">
-        <button type="button" className="code-chip" title="复制邀请链接" onClick={copyInvite}>
-          房间 <strong>{room.code}</strong>
+        <button type="button" className="room-bar-btn" onClick={leave}>
+          ‹ 退出
         </button>
         <div className="room-bar-actions">
-          <button type="button" className="link" onClick={invite}>
-            {copied ? "✅ 已复制" : "📨 邀请"}
-          </button>
-          <button type="button" className="link" onClick={() => setRulesOpen(true)}>
+          <button type="button" className="room-bar-btn" onClick={() => setRulesOpen(true)}>
             📖 规则
           </button>
-          <button type="button" className="link danger" onClick={leave}>
-            退出
+          <button type="button" className="room-bar-btn" onClick={invite}>
+            {copied ? "✅ 已复制" : "📨 邀请"}
+          </button>
+          <button type="button" className="room-code" title="房间号，点一下复制邀请链接" onClick={copyInvite}>
+            {room.code}
           </button>
         </div>
       </header>
-
-      {room.game ? (
-        <>
-          {offline.length > 0 && inGame && (
-            <p className="offline-banner">⚠️ {offline.map((p) => p.name).join("、")} 掉线了，等 Ta 回来…</p>
-          )}
-          {/* key 随局数变化：再来一局时整个游戏界面重新挂载，事件计数、彩带、定时器都从头开始 */}
-          <div key={room.gameNo} className="game-slot">
-            {room.game.gameId === "numberBomb" && <NumberBomb room={room} me={me} actions={actions} />}
-            {room.game.gameId === "undercover" && (
-              <>
-                <PlayerList room={room} me={me} />
-                <Undercover room={room} me={me} actions={actions} />
-              </>
+      <main className="card room">
+        {room.game ? (
+          <>
+            {offline.length > 0 && inGame && (
+              <p className="offline-banner">⚠️ {offline.map((p) => p.name).join("、")} 掉线了，等 Ta 回来…</p>
             )}
-            {room.game.gameId === "bombCat" && <BombCat room={room} me={me} actions={actions} />}
-            {room.game.gameId === "liarsBar" && <LiarsBar room={room} me={me} actions={actions} />}
-            {room.game.gameId === "uno" && <Uno room={room} me={me} actions={actions} />}
-            {room.game.gameId === "werewolf" && <Werewolf room={room} me={me} actions={actions} />}
-            {room.game.gameId === "avalon" && <Avalon room={room} me={me} actions={actions} />}
-            {room.game.gameId === "jenga" && (
-              <Suspense fallback={<p className="hint center">正在搭木塔…</p>}>
-                <Jenga room={room} me={me} actions={actions} />
-              </Suspense>
-            )}
-          </div>
-
-          {room.game.phase === "ended" ? (
-            isHost ? (
-              <div className="end-actions">
-                <button type="button" className="primary-lg" onClick={() => run(actions.restart())}>
-                  🔁 再来一局
-                </button>
-                <button type="button" className="secondary" onClick={() => run(actions.backToLobby())}>
-                  换个游戏
-                </button>
-              </div>
-            ) : (
-              <p className="hint center">等房主开下一局…</p>
-            )
-          ) : (
-            isHost && (
-              <button
-                type="button"
-                className="link end-link"
-                onClick={() => confirm("确定结束本局，回到大厅吗？") && run(actions.backToLobby())}
-              >
-                结束本局
-              </button>
-            )
-          )}
-        </>
-      ) : (
-        <section className="lobby">
-          <PlayerList room={room} me={me} />
-
-          <div className="selected-game" style={{ "--c": meta.color } as CSSProperties}>
-            <span className="selected-game-emoji">{meta.emoji}</span>
-            <div className="selected-game-info">
-              <div className="selected-game-name">{meta.name}</div>
-              <div className="selected-game-tagline">{meta.tagline}</div>
-              <div className="selected-game-meta">
-                👥 {meta.minPlayers}~{meta.maxPlayers} 人 · ⏱ {meta.duration}
-              </div>
+            {/* key 随局数变化：再来一局时整个游戏界面重新挂载，事件计数、彩带、定时器都从头开始 */}
+            <div key={room.gameNo} className="game-slot">
+              {room.game.gameId === "numberBomb" && <NumberBomb room={room} me={me} actions={actions} />}
+              {room.game.gameId === "undercover" && (
+                <>
+                  <PlayerList room={room} me={me} />
+                  <Undercover room={room} me={me} actions={actions} />
+                </>
+              )}
+              {room.game.gameId === "bombCat" && <BombCat room={room} me={me} actions={actions} />}
+              {room.game.gameId === "liarsBar" && <LiarsBar room={room} me={me} actions={actions} />}
+              {room.game.gameId === "uno" && <Uno room={room} me={me} actions={actions} />}
+              {room.game.gameId === "werewolf" && <Werewolf room={room} me={me} actions={actions} />}
+              {room.game.gameId === "avalon" && <Avalon room={room} me={me} actions={actions} />}
+              {room.game.gameId === "jenga" && (
+                <Suspense fallback={<p className="hint center">正在搭木塔…</p>}>
+                  <Jenga room={room} me={me} actions={actions} />
+                </Suspense>
+              )}
             </div>
-            {isHost && (
-              <button type="button" className="link" onClick={() => setPicking(true)}>
-                换游戏
+
+            {room.game.phase === "ended" ? (
+              isHost ? (
+                <div className="end-actions">
+                  <button type="button" className="primary-lg" onClick={() => run(actions.restart())}>
+                    🔁 再来一局
+                  </button>
+                  <button type="button" className="secondary" onClick={() => run(actions.backToLobby())}>
+                    换个游戏
+                  </button>
+                </div>
+              ) : (
+                <p className="hint center">等房主开下一局…</p>
+              )
+            ) : (
+              isHost && (
+                <button
+                  type="button"
+                  className="link end-link"
+                  onClick={() => confirm("确定结束本局，回到大厅吗？") && run(actions.backToLobby())}
+                >
+                  结束本局
+                </button>
+              )
+            )}
+          </>
+        ) : (
+          <section className="lobby">
+            <PlayerList room={room} me={me} />
+
+            <div className="selected-game" style={{ "--c": meta.color } as CSSProperties}>
+              <span className="selected-game-emoji">{meta.emoji}</span>
+              <div className="selected-game-info">
+                <div className="selected-game-name">{meta.name}</div>
+                <div className="selected-game-tagline">{meta.tagline}</div>
+                <div className="selected-game-meta">
+                  👥 {meta.minPlayers}~{meta.maxPlayers} 人 · ⏱ {meta.duration}
+                </div>
+              </div>
+              {isHost && (
+                <button type="button" className="link" onClick={() => setPicking(true)}>
+                  换游戏
+                </button>
+              )}
+            </div>
+
+            <details className="rules">
+              <summary>📖 怎么玩</summary>
+              <ol className="rules-list">
+                {meta.rules.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ol>
+            </details>
+
+            {isHost ? (
+              <button type="button" className="primary-lg" disabled={need > 0 || tooMany} onClick={() => run(actions.start())}>
+                {need > 0
+                  ? `还差 ${need} 人才能开始`
+                  : tooMany
+                    ? `${meta.name}最多 ${meta.maxPlayers} 人`
+                    : `开始游戏（${n} 人）`}
+              </button>
+            ) : (
+              <p className="hint center">等待房主开始游戏…</p>
+            )}
+            {need > 0 && (
+              <button type="button" className="secondary" onClick={invite}>
+                📨 邀请朋友加入
               </button>
             )}
-          </div>
 
-          <details className="rules">
-            <summary>📖 怎么玩</summary>
-            <ol className="rules-list">
-              {meta.rules.map((r, i) => (
-                <li key={i}>{r}</li>
-              ))}
-            </ol>
-          </details>
+            {picking && (
+              <Sheet onClose={() => setPicking(false)}>
+                <h2>换个游戏</h2>
+                <div className="game-grid">
+                  {GAME_ORDER.map((id) => (
+                    <GameCard
+                      key={id}
+                      meta={GAMES[id]}
+                      selected={id === room.selectedGame}
+                      isNew={NEW_GAMES.includes(id)}
+                      onClick={() => {
+                        run(actions.selectGame(id));
+                        setPicking(false);
+                      }}
+                    />
+                  ))}
+                </div>
+              </Sheet>
+            )}
+          </section>
+        )}
 
-          {isHost ? (
-            <button type="button" className="primary-lg" disabled={need > 0 || tooMany} onClick={() => run(actions.start())}>
-              {need > 0 ? `还差 ${need} 人才能开始` : tooMany ? `${meta.name}最多 ${meta.maxPlayers} 人` : `开始游戏（${n} 人）`}
-            </button>
-          ) : (
-            <p className="hint center">等待房主开始游戏…</p>
-          )}
-          {need > 0 && (
-            <button type="button" className="secondary" onClick={invite}>
-              📨 邀请朋友加入
-            </button>
-          )}
+        {error && <p className="error">{error}</p>}
 
-          {picking && (
-            <Sheet onClose={() => setPicking(false)}>
-              <h2>换个游戏</h2>
-              <div className="game-grid">
-                {GAME_ORDER.map((id) => (
-                  <GameCard
-                    key={id}
-                    meta={GAMES[id]}
-                    selected={id === room.selectedGame}
-                    isNew={NEW_GAMES.includes(id)}
-                    onClick={() => {
-                      run(actions.selectGame(id));
-                      setPicking(false);
-                    }}
-                  />
-                ))}
-              </div>
-            </Sheet>
-          )}
-        </section>
-      )}
-
-      {error && <p className="error">{error}</p>}
-
-      {rulesOpen && (
-        <Sheet onClose={() => setRulesOpen(false)}>
-          <GameDetail meta={meta} />
-        </Sheet>
-      )}
-    </main>
+        {rulesOpen && (
+          <Sheet onClose={() => setRulesOpen(false)}>
+            <GameDetail meta={meta} />
+          </Sheet>
+        )}
+      </main>
+    </>
   );
 }

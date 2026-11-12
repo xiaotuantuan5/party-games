@@ -210,7 +210,8 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* minmax(0, …)：长昵称不撑宽格子，交给省略号 */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
 }
 

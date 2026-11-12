@@ -8,6 +8,7 @@ export default defineConfig({
     // 开发时把 WebSocket 转发到游戏服务端
     proxy: {
       "/socket.io": { target: "http://localhost:3001", ws: true },
+      "/avatars": "http://localhost:3001",
     },
   },
 });

@@ -1,4 +1,4 @@
-import { useEffect, type CSSProperties, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import type { GameMeta } from "@party/shared";
 
 function hue(seed: string): number {
@@ -7,9 +7,20 @@ function hue(seed: string): number {
   return h;
 }
 
-/** 用昵称首字 + 由 id 算出的固定颜色做头像 */
-export function Avatar({ name, seed, size = 32 }: { name: string; seed: string; size?: number }) {
+/** 房间里每个玩家的头像地址（玩家 id → 图片地址），各游戏里的 Avatar 按 seed 自动取到 */
+export const AvatarContext = createContext<ReadonlyMap<string, string>>(new Map());
+
+/** 有上传头像就显示图片，否则用昵称首字 + 由 id 算出的固定颜色 */
+export function Avatar({ name, seed, size = 32, src }: { name: string; seed: string; size?: number; src?: string | null }) {
+  const fromRoom = useContext(AvatarContext).get(seed);
+  const url = src ?? fromRoom;
+  const [failed, setFailed] = useState<string | null>(null);
   const first = [...(name.trim() || "?")][0];
+  if (url && failed !== url) {
+    return (
+      <img className="avatar" src={url} alt="" style={{ width: size, height: size }} onError={() => setFailed(url)} aria-hidden />
+    );
+  }
   return (
     <span
       className="avatar"
