@@ -27,7 +27,7 @@ import {
 } from "./stickmanData";
 import { buildTheme, type Theme } from "./stickmanTheme";
 import { DamageNumbers, FXGEO, FxSystem, Particles, Trail, type NumberStyle } from "./stickmanFx";
-import { BugModel, P, STANCE, StickRig, glowMat, idlePose, keyed, mixPose, pose, runPose, type Debris, type Model, type Pose } from "./stickmanRig";
+import { BugModel, FIGURE_COLOR, FIGURE_SCALE, P, STANCE, StickRig, glowMat, idlePose, keyed, mixPose, pose, runPose, type Debris, type Model, type Pose } from "./stickmanRig";
 
 /**
  * 火柴人刷图：单人 2.5D 横版动作闯关，纯前端运行。
@@ -480,8 +480,8 @@ export class StickmanScene {
   private director = new CameraDirector();
   private clock = new THREE.Clock();
   private resizeObserver: ResizeObserver;
-  private hemi = new THREE.HemisphereLight(0x9aa8d0, 0x2a1a10, 0.9);
-  private sun = new THREE.DirectionalLight(0xfff0dd, 1.3);
+  private hemi = new THREE.HemisphereLight(0xdcf0ff, 0xd8ccb0, 1.6);
+  private sun = new THREE.DirectionalLight(0xfff4e0, 2.0);
 
   // ---- 共用资源 ----
   private rockGeos = [0, 1, 2, 3].map((s) => rockGeometry(s * 1.9 + 0.4));
@@ -612,8 +612,8 @@ export class StickmanScene {
     this.fx = new FxSystem(this.scene);
     this.numbers = new DamageNumbers(this.scene);
 
-    this.scene.background = new THREE.Color(0x07060c);
-    this.scene.fog = new THREE.Fog(0x07060c, 40, 120);
+    this.scene.background = new THREE.Color(0xcfe6f4);
+    this.scene.fog = new THREE.Fog(0xcfe6f4, 40, 120);
     this.sun.position.set(-4, 10, 8);
     this.scene.add(this.hemi, this.sun, this.env, this.sparks.points, this.puffs.points, this.trail.mesh);
 
@@ -660,7 +660,7 @@ export class StickmanScene {
   private setRole(role: RoleId): void {
     this.role = role;
     this.player.rig.dispose();
-    const rig = new StickRig({ color: 0xf4f8ff, glow: 0.55, weapon: ROLES[role].weapon, outline: true });
+    const rig = new StickRig({ color: FIGURE_COLOR, glow: 0.04, scale: FIGURE_SCALE, keepWeapon: true, weapon: ROLES[role].weapon });
     this.scene.add(rig.group);
     this.player.rig = rig;
   }
@@ -793,7 +793,7 @@ export class StickmanScene {
   // ================= 场景搭建 =================
 
   private makePlayer(): Player {
-    const rig = new StickRig({ color: 0xf4f8ff, glow: 0.55, weapon: ROLES[this.role].weapon, outline: true });
+    const rig = new StickRig({ color: FIGURE_COLOR, glow: 0.04, scale: FIGURE_SCALE, keepWeapon: true, weapon: ROLES[this.role].weapon });
     this.scene.add(rig.group);
     const shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
     shadow.rotation.x = -Math.PI / 2;
@@ -1330,7 +1330,7 @@ export class StickmanScene {
     const tintEl = el ?? upEl;
     if (act?.kind === "awaken") rig.tint(0xffe080, 0.5);
     else rig.tint(tintEl ? ELEMENT_COLOR[tintEl] : null, 0.55);
-    this.placeShadow(p.shadow, p.pos, 1);
+    this.placeShadow(p.shadow, p.pos, FIGURE_SCALE);
   }
 
   private placeShadow(shadow: THREE.Mesh, pos: THREE.Vector3, size: number): void {
@@ -2333,7 +2333,7 @@ export class StickmanScene {
     let radius: number;
     let height: number;
     if (kind === "boss") {
-      rig = new StickRig({ color: BOSS.color, glow: 0.15, scale: 2.5, weapon: "hammer", crown: true, cape: true });
+      rig = new StickRig({ color: BOSS.color, glow: 0.04, scale: 2.5 * FIGURE_SCALE, weapon: "hammer", crown: true, cape: true });
       model = rig;
       hp = BOSS.hp;
       dmg = BOSS.dmg;
@@ -2351,11 +2351,13 @@ export class StickmanScene {
         radius = 0.5 * s;
         height = 1.1 * s;
       } else {
+        // 碰撞范围按原来的大小算，画面上的火柴人缩小
         const scale = (kind === "goblin" ? 0.85 : 1) * s;
         rig = new StickRig({
           color: def.color,
-          glow: 0.12,
-          scale,
+          glow: 0.04,
+          scale: scale * FIGURE_SCALE,
+          keepWeapon: true,
           weapon: kind === "goblin" ? "dagger" : kind === "archer" ? "bow" : "none",
           hat: kind === "goblin",
           quiver: kind === "archer",

@@ -569,13 +569,13 @@ export interface EnemyDef {
 }
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
-  goblin: { name: "山贼刀手", hp: 650, speed: 3.2, dmg: 60, score: 100, color: 0x3a3a42 },
-  archer: { name: "山贼弓手", hp: 480, speed: 3, dmg: 70, score: 120, color: 0x4a4a52 },
-  shield: { name: "藤牌兵", hp: 1200, speed: 2.2, dmg: 80, score: 150, color: 0x6a6258 },
+  goblin: { name: "山贼刀手", hp: 650, speed: 3.2, dmg: 60, score: 100, color: 0x111116 },
+  archer: { name: "山贼弓手", hp: 480, speed: 3, dmg: 70, score: 120, color: 0x15151b },
+  shield: { name: "藤牌兵", hp: 1200, speed: 2.2, dmg: 80, score: 150, color: 0x1a1816 },
   bomber: { name: "火药傀儡", hp: 220, speed: 5.2, dmg: 150, score: 80, color: 0xa33a2a },
 };
 
-export const BOSS = { name: "血煞堂主", hp: 32000, bars: 8, dmg: 150, score: 5000, color: 0x7a1414 };
+export const BOSS = { name: "血煞堂主", hp: 32000, bars: 8, dmg: 150, score: 5000, color: 0x0b0b10 };
 
 export interface Spawn {
   kind: EnemyKind;

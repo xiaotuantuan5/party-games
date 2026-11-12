@@ -116,11 +116,18 @@ export const P = {
 
 export type Weapon = "sword" | "club" | "bow" | "hammer" | "spear" | "dagger" | "fist" | "fan" | "none";
 
+/** 火柴人整体缩小后的比例：身高约等于一把剑的长度，让画面重点落在技能和背景上 */
+export const FIGURE_SCALE = 0.66;
+/** 火柴人统一用墨黑色 */
+export const FIGURE_COLOR = 0x0b0b10;
+
 export interface RigOptions {
   color: number;
   /** 自发光强度（主角发光，敌人只有一点） */
   glow: number;
   scale?: number;
+  /** 缩放身体时保持武器原来的大小（武器挂在手上，不跟着身体缩小） */
+  keepWeapon?: boolean;
   weapon: Weapon;
   /** 主角用：给身体加一圈黑色描边 */
   outline?: boolean;
@@ -400,6 +407,7 @@ export class StickRig implements Model {
       chest.add(this.cape);
     }
     this.group.scale.setScalar(this.scale);
+    if (opts.keepWeapon) this.weapon.scale.setScalar(1 / this.scale);
     this.apply(STANCE);
   }
 

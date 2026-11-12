@@ -153,14 +153,13 @@ function panorama(room: number): THREE.CanvasTexture {
   c.width = W;
   c.height = H;
   const g = c.getContext("2d")!;
-  const palette = [
-    ["#060814", "#1c2640", "#4a5a78"], // 山门：夜色偏蓝
-    ["#050d0b", "#14302a", "#3a5a4a"], // 竹林：青绿
-    ["#0b070e", "#2a1a26", "#5a3a46"], // 古寺庭院：紫灰
-    ["#08080e", "#1e1e2a", "#3a3a4e"], // 藏经楼
-    ["#120406", "#3a0a12", "#7a2430"], // 血煞大殿：血色
-  ][room] ?? ["#060814", "#1c2640", "#4a5a78"];
-
+  // 白天的天色：顶部偏蓝，靠近地平线泛白。血煞大殿是傍晚前的红霞
+  const palette =
+    room === 4
+      ? ["#c85a50", "#f0a082", "#ffe6cc"]
+      : room === 1
+        ? ["#7fb6dc", "#c4e2ee", "#eef6e6"]
+        : ["#6aaee6", "#bfe3f5", "#f4f9f2"];
   const sky = g.createLinearGradient(0, 0, 0, H * 0.7);
   sky.addColorStop(0, palette[0]!);
   sky.addColorStop(0.7, palette[1]!);
@@ -168,45 +167,57 @@ function panorama(room: number): THREE.CanvasTexture {
   g.fillStyle = sky;
   g.fillRect(0, 0, W, H);
 
-  // 月亮与月晕，放在画面的右上方
-  if (room !== 4) {
-    const halo = g.createRadialGradient(1500, 110, 40, 1500, 110, 260);
-    halo.addColorStop(0, "rgba(220,230,255,0.35)");
-    halo.addColorStop(1, "rgba(220,230,255,0)");
-    g.fillStyle = halo;
-    g.fillRect(1200, 0, 600, 420);
-    g.fillStyle = "rgba(236,242,255,0.95)";
-    g.beginPath();
-    g.arc(1500, 110, 48, 0, Math.PI * 2);
-    g.fill();
-  } else {
-    g.fillStyle = "rgba(255,80,60,0.28)";
-    g.beginPath();
-    g.arc(1024, 150, 170, 0, Math.PI * 2);
-    g.fill();
-  }
+  // 太阳与光晕，放在画面的右上方
+  const halo = g.createRadialGradient(1500, 110, 30, 1500, 110, 300);
+  halo.addColorStop(0, "rgba(255,246,220,0.85)");
+  halo.addColorStop(1, "rgba(255,246,220,0)");
+  g.fillStyle = halo;
+  g.fillRect(1150, 0, 700, 430);
+  g.fillStyle = "rgba(255,250,236,0.98)";
+  g.beginPath();
+  g.arc(1500, 110, 46, 0, Math.PI * 2);
+  g.fill();
+
+  // 几朵白云，水墨风格的扁圆叠加
+  const cloud = (x: number, y: number, s: number) => {
+    g.fillStyle = "rgba(255,255,255,0.88)";
+    for (const [dx, dy, r] of [
+      [0, 0, 26],
+      [30, -8, 32],
+      [64, 0, 24],
+      [-28, 6, 18],
+    ] as const) {
+      g.beginPath();
+      g.arc(x + dx * s, y + dy * s, r * s, 0, Math.PI * 2);
+      g.fill();
+    }
+  };
+  cloud(260, 120, 1.4);
+  cloud(820, 80, 1.1);
+  cloud(1100, 180, 1.3);
+  cloud(1800, 230, 1.0);
 
   // 远处的雾带，让层次之间有呼吸感
   for (const [y, a] of [
-    [250, 0.22],
-    [300, 0.18],
-    [360, 0.12],
+    [250, 0.3],
+    [300, 0.22],
+    [360, 0.14],
   ] as const) {
     const mist = g.createLinearGradient(0, y - 30, 0, y + 30);
-    mist.addColorStop(0, "rgba(200,212,235,0)");
-    mist.addColorStop(0.5, `rgba(200,212,235,${a})`);
-    mist.addColorStop(1, "rgba(200,212,235,0)");
+    mist.addColorStop(0, "rgba(240,248,250,0)");
+    mist.addColorStop(0.5, `rgba(240,248,250,${a})`);
+    mist.addColorStop(1, "rgba(240,248,250,0)");
     g.fillStyle = mist;
     g.fillRect(0, y - 30, W, 60);
   }
 
-  // 层层叠叠的山脊，越靠前越深；每层用整数倍频率保证首尾相接
+  // 层层叠叠的山脊：越远越浅、越淡，越近越深、越绿；每层用整数倍频率保证首尾相接
   const ridge = (x: number, k: number, phase: number) => Math.sin((2 * Math.PI * k * x) / W + phase);
+  const ridgeColors = ["rgba(164,200,206,0.92)", "rgba(120,166,160,0.94)", "rgba(84,130,112,0.96)", "rgba(58,100,84,1)"];
   for (let layer = 0; layer < 4; layer++) {
     const base = 300 + layer * 52;
-    const alpha = 0.32 + layer * 0.2;
     const ph = layer * 1.7;
-    g.fillStyle = `rgba(6,6,14,${alpha})`;
+    g.fillStyle = ridgeColors[layer]!;
     g.beginPath();
     g.moveTo(0, H);
     for (let x = 0; x <= W; x += 8) {
@@ -224,9 +235,9 @@ function panorama(room: number): THREE.CanvasTexture {
   }
 
   // 各场景的剪影，放在画面的几个固定角度上
-  g.fillStyle = "rgba(4,4,8,0.95)";
   if (room === 0) {
-    // 山门后的飞檐
+    // 山门后的飞檐，朱红偏深
+    g.fillStyle = "rgba(150,60,50,0.9)";
     for (const x of [300, 1400]) {
       g.beginPath();
       g.moveTo(x - 160, 300);
@@ -237,18 +248,21 @@ function panorama(room: number): THREE.CanvasTexture {
       g.fill();
     }
   } else if (room === 1) {
-    // 竹林剪影
+    // 竹林剪影，青绿色
+    g.fillStyle = "rgba(60,110,72,0.9)";
     for (let x = 0; x < W; x += 22) {
       g.fillRect(x + ((x * 37) % 9), 170 + ((x * 53) % 60), 6, 340);
     }
   } else if (room === 2) {
-    // 古塔
+    // 古塔，灰褐色
+    g.fillStyle = "rgba(110,96,84,0.92)";
     g.fillRect(990, 150, 84, 362);
     for (let i = 0; i < 5; i++) {
       g.fillRect(975 - i * 4, 170 + i * 60, 114 + i * 8, 14);
     }
   } else if (room === 4) {
-    // 佛像剪影，在血色天光里
+    // 佛像剪影，在朝霞里
+    g.fillStyle = "rgba(120,50,50,0.9)";
     g.beginPath();
     g.arc(1024, 220, 60, 0, Math.PI * 2);
     g.fill();
@@ -271,9 +285,9 @@ function waterTexture(): THREE.CanvasTexture {
   c.width = 512;
   c.height = 512;
   const g = c.getContext("2d")!;
-  g.fillStyle = "#16303c";
+  g.fillStyle = "#3f8fb0";
   g.fillRect(0, 0, 512, 512);
-  g.strokeStyle = "rgba(150,200,220,0.16)";
+  g.strokeStyle = "rgba(230,250,255,0.35)";
   g.lineWidth = 2;
   for (let i = 0; i < 90; i++) {
     const y = (i * 37) % 512;
@@ -294,10 +308,10 @@ function tileFloor(room: number): THREE.CanvasTexture {
   c.width = 256;
   c.height = 256;
   const g = c.getContext("2d")!;
-  const base = room === 4 ? "#2a0c10" : room === 3 ? "#2a2018" : room === 1 ? "#1a2a22" : "#25262e";
+  const base = room === 4 ? "#a86a66" : room === 3 ? "#b89a72" : room === 1 ? "#9ab08a" : "#c9c2b2";
   g.fillStyle = base;
   g.fillRect(0, 0, 256, 256);
-  g.strokeStyle = "rgba(0,0,0,0.55)";
+  g.strokeStyle = "rgba(60,50,40,0.35)";
   g.lineWidth = 4;
   for (let i = 0; i <= 256; i += 64) {
     g.beginPath();
@@ -390,7 +404,7 @@ export function buildTheme(group: THREE.Group, room: number, width: number, door
   // 中景远山：一圈低多边形山体，雾会把远处的淡掉，形成层次
   const hills = track(new THREE.InstancedMesh(
     track(new THREE.ConeGeometry(1, 1, 7, 1)),
-    track(new THREE.MeshStandardMaterial({ color: outdoor ? 0x1e2638 : 0x18141c, roughness: 1, metalness: 0 })),
+    track(new THREE.MeshStandardMaterial({ color: outdoor ? 0x6e9080 : 0x9a9488, roughness: 1, metalness: 0 })),
     HILL_COUNT,
   ));
   const hillDummy = new THREE.Object3D();
@@ -414,7 +428,7 @@ export function buildTheme(group: THREE.Group, room: number, width: number, door
     waterTex.repeat.set(FLOOR_SIZE / 16, 3);
     const water = new THREE.Mesh(
       track(new THREE.PlaneGeometry(FLOOR_SIZE, 52)),
-      track(new THREE.MeshStandardMaterial({ map: waterTex, color: 0xb8e0ec, roughness: 0.16, metalness: 0.4 })),
+      track(new THREE.MeshStandardMaterial({ map: waterTex, color: 0xd8f0f8, roughness: 0.16, metalness: 0.3 })),
     );
     water.rotation.x = -Math.PI / 2;
     water.position.set(cx, 0.02, -35);
@@ -593,10 +607,11 @@ export function buildTheme(group: THREE.Group, room: number, width: number, door
     add(frame);
   }
 
-  const hemi = room === 4 ? 0.7 : room === 3 ? 0.55 : 0.8;
-  const fog = room === 4 ? 0x120406 : room === 1 ? 0x06100c : 0x0a0a14;
-  const sky = room === 4 ? 0xff8a7a : 0xa8b8e8;
-  const ground = room === 4 ? 0x3a0a10 : 0x2a2418;
+  // 白天：环境光偏亮，雾是淡蓝色的空气
+  const hemi = room === 3 ? 1.3 : 1.6;
+  const fog = room === 4 ? 0xf0c8b8 : room === 3 ? 0xd8e0e4 : 0xcfe6f4;
+  const sky = room === 4 ? 0xffe4cc : 0xdcf0ff;
+  const ground = room === 4 ? 0xb89a84 : 0xd8ccb0;
 
   const petals = track(new Petals(260));
   const petalColor = room === 4 ? 0xff3a4a : room === 1 ? 0xbfe6a0 : room === 3 ? 0xd8c890 : 0xf4b8c8;
@@ -607,7 +622,7 @@ export function buildTheme(group: THREE.Group, room: number, width: number, door
     petals,
     fog,
     fogNear: outdoor ? 60 : 30,
-    fogFar: outdoor ? 170 : 90,
+    fogFar: outdoor ? 200 : 110,
     sky,
     ground,
     hemi,
