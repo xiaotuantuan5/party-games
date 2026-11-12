@@ -88,7 +88,13 @@ export function Stickman({ onExit }: { onExit: () => void }) {
     localStorage.setItem(ROLE_KEY, r);
   };
   const [fade, setFade] = useState(false);
-  const [portrait, setPortrait] = useState(false);
+  const [portrait, setPortrait] = useState(() => isTouch() && window.innerHeight > window.innerWidth);
+  /** 玩家点了「仍然竖屏玩」，暂时收起竖屏提示；转到横屏后会重新置回 */
+  const [rotateSkipped, setRotateSkipped] = useState(false);
+  /** 点了切换横屏但浏览器没有切过去 */
+  const [rotateFailed, setRotateFailed] = useState(false);
+  const rotateSkippedRef = useRef(false);
+  const showRotate = portrait && !rotateSkipped;
   const [touch] = useState(isTouch);
   const [webglError, setWebglError] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
@@ -148,7 +154,11 @@ export function Stickman({ onExit }: { onExit: () => void }) {
     const onResize = () => {
       const p = window.innerHeight > window.innerWidth && isTouch();
       setPortrait(p);
-      if (p) pause();
+      if (!p) {
+        rotateSkippedRef.current = false;
+        setRotateSkipped(false);
+        setRotateFailed(false);
+      }
     };
     onResize();
     document.addEventListener("visibilitychange", onHidden);
@@ -179,6 +189,22 @@ export function Stickman({ onExit }: { onExit: () => void }) {
     const t = setTimeout(() => setFlash(null), flash.kind === "white" ? 450 : 250);
     return () => clearTimeout(t);
   }, [flash]);
+
+  /** 竖屏提示出现时，正在游戏中就自动暂停，提示关掉后仍是暂停，点「继续」再玩 */
+  useEffect(() => {
+    if (showRotate && phaseRef.current === "playing") {
+      sceneRef.current?.setPaused(true);
+      setPhase("paused");
+    }
+  }, [showRotate]);
+
+  /** 竖屏时，玩家点按钮后请求全屏和横屏；浏览器没切过去就给出手动转屏的提示 */
+  const tryLandscape = async () => {
+    await enterLandscape();
+    window.setTimeout(() => {
+      if (window.innerHeight > window.innerWidth) setRotateFailed(true);
+    }, 500);
+  };
 
   const start = () => {
     if (touch) void enterLandscape();
@@ -310,7 +336,7 @@ export function Stickman({ onExit }: { onExit: () => void }) {
         </div>
       )}
 
-      {phase === "paused" && !portrait && (
+      {phase === "paused" && !showRotate && (
         <div className="sm-overlay">
           <div className="sm-corner">
             <SoundToggle />
@@ -415,10 +441,20 @@ export function Stickman({ onExit }: { onExit: () => void }) {
         </div>
       )}
 
-      {portrait && (
+      {showRotate && (
         <div className="sm-rotate">
           <div className="sm-rotate-phone">📱</div>
           <p>请把手机横过来</p>
+          <button type="button" className="sm-btn" onClick={() => void tryLandscape()}>
+            ↻ 点这里切换横屏
+          </button>
+          {rotateFailed && <p className="sm-best">没能自动切换，请手动把手机横过来</p>}
+          <button type="button" className="sm-btn ghost" onClick={() => {
+              rotateSkippedRef.current = true;
+              setRotateSkipped(true);
+            }}>
+            仍然竖屏玩
+          </button>
           {phase === "paused" && <p className="sm-best">转过来后点「继续」</p>}
         </div>
       )}
