@@ -1,0 +1,502 @@
+.mw-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: -8px;
+  padding: 8px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff1e6 0%, #fff 45%);
+}
+
+.mw-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mw-head h2 {
+  flex: 1;
+}
+
+.mw-phase {
+  font-size: 13px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(194, 65, 12, 0.12);
+  white-space: nowrap;
+}
+
+/* ---------- 手牌 ---------- */
+.mw-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 72px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  text-align: left;
+  background: repeating-linear-gradient(45deg, #c2410c 0 10px, #ad3a0b 10px 20px);
+  color: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+}
+
+.mw-card.open {
+  background: #fff;
+  color: #16161a;
+  box-shadow:
+    0 0 0 2px #c2410c,
+    0 4px 0 rgba(0, 0, 0, 0.2);
+  animation: mw-flip 0.35s ease-out;
+}
+
+.mw-card-hidden {
+  flex: 1;
+  text-align: center;
+}
+
+.mw-card-digit {
+  flex-shrink: 0;
+  width: 56px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 44px;
+  font-weight: bold;
+  color: #fff;
+  background: #c2410c;
+}
+
+.mw-card-digit.zero {
+  background: #111;
+  box-shadow: 0 0 0 3px #f59e0b;
+}
+
+.mw-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.mw-card-text strong {
+  font-size: 17px;
+}
+
+.mw-status {
+  margin: 0;
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.mw-end-text {
+  animation: mw-pop 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.4);
+}
+
+.mw-end-text.won {
+  color: #15803d;
+}
+
+.mw-end-text.lost {
+  color: #b91c1c;
+}
+
+.mw-announce {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fff7ed;
+  border: 1px dashed #fdba74;
+  font-size: 14px;
+}
+
+.mw-announce .hint {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.mw-sep {
+  margin: 0 6px;
+  opacity: 0.5;
+}
+
+.mw-timer {
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.mw-timer.over {
+  color: #c2410c;
+  animation: mw-pulse 1s ease-in-out infinite;
+}
+
+/* ---------- 数字 ---------- */
+.mw-sheet {
+  display: inline-flex;
+  gap: 2px;
+  vertical-align: middle;
+}
+
+.mw-chip {
+  min-width: 16px;
+  padding: 0 3px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  text-align: center;
+  color: #7c2d12;
+  background: #fed7aa;
+}
+
+.mw-chip.zero {
+  color: #fff;
+  background: #111;
+}
+
+.mw-chip.mine {
+  box-shadow: 0 0 0 1.5px #c2410c;
+}
+
+.mw-pad {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.mw-digit {
+  position: relative;
+  padding: 10px 0;
+  font-size: 20px;
+  font-weight: bold;
+  color: #7c2d12;
+  background: #ffedd5;
+}
+
+.mw-digit.zero {
+  color: #fff;
+  background: #3f3f46;
+}
+
+.mw-digit.on {
+  color: #fff;
+  background: #c2410c;
+  transform: scale(1.05);
+}
+
+.mw-digit.zero.on {
+  background: #111;
+  box-shadow: 0 0 0 3px #f59e0b;
+}
+
+/* 自己的牌：右上角一个小点 */
+.mw-digit.mine::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+/* ---------- 座位 ---------- */
+.mw-seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.mw-seat {
+  position: relative;
+  width: 100%;
+  min-height: 92px;
+  padding: 8px 2px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border-radius: 10px;
+  background: rgba(194, 65, 12, 0.07);
+  color: inherit;
+  font-size: 12px;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+
+.mw-seat:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.mw-seat.can {
+  cursor: pointer;
+  box-shadow: 0 0 0 2px rgba(194, 65, 12, 0.4);
+}
+
+.mw-seat.selected {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 3px #c2410c !important;
+  background: rgba(194, 65, 12, 0.18);
+}
+
+.mw-seat.out {
+  filter: grayscale(0.8);
+  opacity: 0.6;
+}
+
+.mw-seat.won {
+  background: #dcfce7;
+  filter: none;
+  opacity: 1;
+}
+
+.mw-seat.lost {
+  background: #fee2e2;
+}
+
+.mw-seat-no {
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.mw-seat-card {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  min-width: 18px;
+  padding: 1px 4px;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #fff;
+  background: #c2410c;
+}
+
+.mw-seat-card.zero {
+  background: #111;
+}
+
+.mw-seat-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mw-seat-tags {
+  min-height: 16px;
+  font-size: 12px;
+}
+
+/* ---------- 操作面板 ---------- */
+.mw-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(194, 65, 12, 0.07);
+  animation: mw-rise 0.25s ease-out;
+}
+
+.mw-panel p,
+.mw-panel h3 {
+  margin: 0;
+}
+
+.mw-panel h3 {
+  font-size: 15px;
+}
+
+.mw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mw-actions button {
+  flex: 1;
+}
+
+.mw-accuse {
+  background: #c2410c;
+}
+
+.mw-zero-task {
+  background: #18181b;
+  color: #fff;
+}
+
+.mw-zero-task button {
+  background: #f59e0b;
+  color: #111;
+  font-weight: bold;
+}
+
+.mw-queries {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  background: #eef2ff;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.mw-slots {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.mw-slot {
+  width: 56px;
+  height: 64px;
+  font-size: 28px;
+  font-weight: bold;
+  color: #7c2d12;
+  background: #fff;
+  border: 2px dashed #fdba74;
+}
+
+.mw-slot.mine {
+  border-style: solid;
+  border-color: #f59e0b;
+}
+
+.mw-slot.on {
+  color: #fff;
+  background: #c2410c;
+  border-color: #c2410c;
+}
+
+/* ---------- 结算 ---------- */
+.mw-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mw-bars li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.mw-bar-digit {
+  width: 22px;
+  text-align: center;
+  font-weight: bold;
+  border-radius: 4px;
+  color: #7c2d12;
+  background: #fed7aa;
+}
+
+.mw-bar-digit.zero {
+  color: #fff;
+  background: #111;
+}
+
+.mw-bar-track {
+  flex: 1;
+  height: 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.mw-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  background: #fb923c;
+  animation: mw-grow 0.6s ease-out;
+}
+
+.mw-bars li.max .mw-bar-fill,
+.mw-bars li.min .mw-bar-fill {
+  background: #dc2626;
+}
+
+.mw-bars li.min .mw-bar-fill {
+  min-width: 4px;
+}
+
+.mw-bar-count {
+  width: 52px;
+  font-weight: bold;
+}
+
+.mw-bars li.max .mw-bar-count,
+.mw-bars li.min .mw-bar-count {
+  color: #dc2626;
+}
+
+.mw-outcomes {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mw-outcomes li.won {
+  font-weight: bold;
+  color: #15803d;
+}
+
+@keyframes mw-flip {
+  from {
+    transform: rotateY(90deg);
+  }
+}
+
+@keyframes mw-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+@keyframes mw-rise {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+}
+
+@keyframes mw-grow {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes mw-pulse {
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-timer.over,
+  .mw-bar-fill {
+    animation: none;
+  }
+}

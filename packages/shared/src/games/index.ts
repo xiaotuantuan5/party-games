@@ -1,6 +1,7 @@
 import type { AvalonAction, AvalonView } from "./avalon.js";
 import type { BombCatAction, BombCatView } from "./bombCat.js";
 import type { JengaAction, JengaView } from "./jenga.js";
+import type { MidwayAction, MidwayView } from "./midway.js";
 import type { LiarsBarAction, LiarsBarView } from "./liarsBar.js";
 import type { NumberBombAction, NumberBombView } from "./numberBomb.js";
 import type { QuestAction, QuestView } from "./quest.js";
@@ -12,13 +13,14 @@ export * from "./avalon.js";
 export * from "./bombCat.js";
 export * from "./jenga.js";
 export * from "./liarsBar.js";
+export * from "./midway.js";
 export * from "./numberBomb.js";
 export * from "./quest.js";
 export * from "./undercover.js";
 export * from "./uno.js";
 export * from "./werewolf.js";
 
-export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf" | "avalon" | "quest";
+export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf" | "avalon" | "quest" | "midway";
 
 export interface GameMeta {
   id: GameId;
@@ -35,9 +37,35 @@ export interface GameMeta {
   rules: string[];
   /** 卡片主色 */
   color: string;
+  /** 本项目原创的玩法，卡片上标“原创” */
+  original?: boolean;
 }
 
 export const GAMES: Record<GameId, GameMeta> = {
+  midway: {
+    id: "midway",
+    name: "不上不下",
+    emoji: "⚖",
+    tagline: "别当最多的，也别当最少的，小心那个 0",
+    description:
+      "原创心理战。每人一张数字牌，写 3 个数字，结算时自己的数字被写得最多或最少都算输。可以随便撒谎，也可以当场指认别人的牌。",
+    minPlayers: 4,
+    maxPlayers: 10,
+    duration: "10~15 分钟",
+    tags: ["原创", "心理战", "撒谎"],
+    rules: [
+      "发牌：0 一定会发出，其余每人从 1~9 里各拿一张不重复的牌，只有自己能看到。发出去的这些数字叫“在场数字”，所有统计只看它们。",
+      "首轮：每人写 3 个不同的数字（0~9），必须包含自己的牌；拿到 0 的人可以不写 0。全部交完后公布在场数字里被写得最多和最少的数字。",
+      "自由交流（建议 5 分钟）：可以声称自己是任何数字，可以撒谎，不能给别人看手机。大家都点“结束讨论”就进入修改。",
+      "指认：交流期间随时可以指认某人的牌是几。指对：对方出局、亮牌和纸条（纸条照样计入统计），你可以私下问一个数字现在被写了几次。指错：你的纸条公开，指错 2 次直接失败。",
+      "指认别人是 0 却指错了：除了公开纸条，被你指认的人还会挑你纸上一个数字改成 0（你已经写了 0 就不改）。",
+      "修改：每个还在场的人可以把 3 个数字中的 1 个换掉，也可以把自己的牌号换掉。",
+      "结算：统计在场数字最终被写了几次。自己的数字是最多的（并列也算）或最少的（并列也算，被写 0 次也算）就输；所有在场数字次数都一样时没有最多最少。",
+      "0 的规则：没人写 0，拿 0 的人单独获胜，其他人全输。0 是唯一最多或唯一最少，拿 0 的人和所有写了 0 的人一起输。0 和别的数字并列最多或最少，所有写 0 的人和拿 0 的人都不算输。",
+    ],
+    color: "#c2410c",
+    original: true,
+  },
   avalon: {
     id: "avalon",
     name: "阿瓦隆",
@@ -220,9 +248,9 @@ export const GAMES: Record<GameId, GameMeta> = {
 };
 
 /** 首页展示顺序 */
-export const GAME_ORDER: GameId[] = ["avalon", "quest", "werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
+export const GAME_ORDER: GameId[] = ["midway", "avalon", "quest", "werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
 
-export type GameView = AvalonView | NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView | QuestView;
+export type GameView = AvalonView | NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView | QuestView | MidwayView;
 export type GameAction =
   | AvalonAction
   | NumberBombAction
@@ -232,4 +260,5 @@ export type GameAction =
   | UnoAction
   | JengaAction
   | WerewolfAction
-  | QuestAction;
+  | QuestAction
+  | MidwayAction;
