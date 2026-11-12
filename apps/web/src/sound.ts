@@ -248,6 +248,16 @@ export const sfx = {
   creak() {
     tone(180, 0.5, { type: "sawtooth", slideTo: 140, gain: 0.03 });
   },
+  /** 狼人杀：天黑，低沉的下行音加一声狼嚎 */
+  night() {
+    [392, 330, 262, 196].forEach((f, i) => tone(f, 0.5, { type: "sine", gain: 0.12, delay: i * 0.18 }));
+    tone(420, 1.1, { type: "sawtooth", slideTo: 620, gain: 0.03, delay: 0.9 });
+    tone(620, 0.7, { type: "sawtooth", slideTo: 380, gain: 0.03, delay: 2.0 });
+  },
+  /** 狼人杀：天亮，明亮的上行音 */
+  dawn() {
+    [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, { type: "triangle", gain: 0.14, delay: i * 0.12 }));
+  },
   myTurn() {
     tone(880, 0.12, { gain: 0.14 });
     tone(1175, 0.2, { gain: 0.14, delay: 0.12 });

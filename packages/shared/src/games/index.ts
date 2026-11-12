@@ -4,6 +4,7 @@ import type { LiarsBarAction, LiarsBarView } from "./liarsBar.js";
 import type { NumberBombAction, NumberBombView } from "./numberBomb.js";
 import type { UndercoverAction, UndercoverView } from "./undercover.js";
 import type { UnoAction, UnoView } from "./uno.js";
+import type { WerewolfAction, WerewolfView } from "./werewolf.js";
 
 export * from "./bombCat.js";
 export * from "./jenga.js";
@@ -11,8 +12,9 @@ export * from "./liarsBar.js";
 export * from "./numberBomb.js";
 export * from "./undercover.js";
 export * from "./uno.js";
+export * from "./werewolf.js";
 
-export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga";
+export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf";
 
 export interface GameMeta {
   id: GameId;
@@ -32,6 +34,27 @@ export interface GameMeta {
 }
 
 export const GAMES: Record<GameId, GameMeta> = {
+  werewolf: {
+    id: "werewolf",
+    name: "狼人杀",
+    emoji: "🐺",
+    tagline: "天黑请闭眼，狼人请睁眼",
+    description: "简化版狼人杀：狼人、预言家、女巫、猎人、村民。手机代替法官，夜里各自在手机上行动，白天面对面讨论、投票。",
+    minPlayers: 6,
+    maxPlayers: 12,
+    duration: "20~40 分钟",
+    tags: ["推理", "阵营", "经典"],
+    rules: [
+      "身份：6 人 2 狼 + 预言家 + 女巫 + 2 村民；7 人起加猎人；8~10 人 3 狼；11~12 人 4 狼，其余是村民。狼人互相认识。",
+      "夜晚：狼人一起选一个人刀（所有狼人选同一个人才算数），预言家查验一个人是好人还是狼人，然后女巫决定救人或毒人。",
+      "女巫的解药和毒药各一瓶，同一晚只能用一瓶，不能自救。",
+      "天亮公布昨晚死了谁（不说怎么死的）。大家按顺序发言，都点“准备投票”后开始投票。",
+      "得票最多的人出局，平票或都弃票则无人出局。出局和夜里死的人不公开身份。",
+      "猎人被刀死或被投出局时可以开枪带走一个人，被毒死不能开枪。",
+      "狼人全部出局，好人胜；狼人数量不少于好人，狼人胜。死了的人不要说话哦。",
+    ],
+    color: "#3d348b",
+  },
   uno: {
     id: "uno",
     name: "UNO",
@@ -151,13 +174,14 @@ export const GAMES: Record<GameId, GameMeta> = {
 };
 
 /** 首页展示顺序 */
-export const GAME_ORDER: GameId[] = ["uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
+export const GAME_ORDER: GameId[] = ["werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
 
-export type GameView = NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView;
+export type GameView = NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView;
 export type GameAction =
   | NumberBombAction
   | UndercoverAction
   | BombCatAction
   | LiarsBarAction
   | UnoAction
-  | JengaAction;
+  | JengaAction
+  | WerewolfAction;

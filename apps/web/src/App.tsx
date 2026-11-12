@@ -6,13 +6,14 @@ import { LiarsBar } from "./games/LiarsBar";
 import { NumberBomb } from "./games/NumberBomb";
 import { Undercover } from "./games/Undercover";
 import { Uno } from "./games/Uno";
+import { Werewolf } from "./games/Werewolf";
 import { useParty, savedName, type PartyActions } from "./party";
 import { useRun, type GameProps } from "./ui";
 
 // 3D 层层叠依赖 three.js 和物理引擎，体积较大，进入游戏时才加载
 const Jenga = lazy(() => import("./games/Jenga").then((m) => ({ default: m.Jenga })));
 
-const NEW_GAMES: GameId[] = ["uno", "jenga"];
+const NEW_GAMES: GameId[] = ["werewolf", "uno", "jenga"];
 
 export function App() {
   const { room, me, connected, notice, clearNotice, actions } = useParty();
@@ -219,6 +220,7 @@ function RoomScreen({ room, me, actions }: GameProps) {
             {room.game.gameId === "bombCat" && <BombCat room={room} me={me} actions={actions} />}
             {room.game.gameId === "liarsBar" && <LiarsBar room={room} me={me} actions={actions} />}
             {room.game.gameId === "uno" && <Uno room={room} me={me} actions={actions} />}
+            {room.game.gameId === "werewolf" && <Werewolf room={room} me={me} actions={actions} />}
             {room.game.gameId === "jenga" && (
               <Suspense fallback={<p className="hint center">正在搭木塔…</p>}>
                 <Jenga room={room} me={me} actions={actions} />
