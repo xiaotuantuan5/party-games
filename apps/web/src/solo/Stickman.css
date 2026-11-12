@@ -1090,3 +1090,14 @@
     opacity: 0;
   }
 }
+
+/* 竖屏且浏览器不能切换横屏（比如微信内置浏览器）：把整个画面旋转 90 度，显示成横屏 */
+.sm-root.sm-forced {
+  inset: auto;
+  left: 0;
+  top: 0;
+  width: 100dvh;
+  height: 100dvw;
+  transform-origin: 0 0;
+  transform: translateX(100dvw) rotate(90deg);
+}

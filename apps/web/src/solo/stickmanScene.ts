@@ -138,8 +138,9 @@ const shuffle = <T>(arr: T[]): T[] => {
 // ================= 主角姿势 =================
 
 const A1: [number, Pose][] = [
-  [0, pose({ shR: 2.7, elR: 0.5, wpn: 0.4, lean: -0.05, shL: -0.2 })],
-  [0.3, pose({ shR: 1.0, elR: 0.05, wpn: 0.3, lean: 0.4, shL: -0.5, hipR: 0.6, knR: -0.5, hipL: -0.5 })],
+  // 预备：身体后拉、上身向后转；出招：上身向前扭，带动挥剑
+  [0, pose({ shR: 2.7, elR: 0.5, wpn: 0.4, lean: -0.05, shL: -0.2, twist: 0.25 })],
+  [0.3, pose({ shR: 1.0, elR: 0.05, wpn: 0.3, lean: 0.4, shL: -0.5, hipR: 0.6, knR: -0.5, hipL: -0.5, twist: -0.35 })],
   [1, pose({ shR: 0.5, elR: 0.3, wpn: 0.3, lean: 0.3, hipR: 0.55, knR: -0.5, hipL: -0.45 })],
 ];
 const A2: [number, Pose][] = [
@@ -148,8 +149,8 @@ const A2: [number, Pose][] = [
   [1, pose({ shR: 2.3, elR: 0.3, wpn: 0.3, lean: 0 })],
 ];
 const A3: [number, Pose][] = [
-  [0, pose({ shR: -0.6, elR: 1.3, wpn: 0.9, lean: -0.1, hipR: 0.2, rootY: -0.1 })],
-  [0.3, pose({ shR: 1.55, elR: 0, wpn: 0, lean: 0.6, hipR: 1.0, knR: -0.6, hipL: -0.8, knL: -0.2, rootY: -0.25, shL: -0.8 })],
+  [0, pose({ shR: -0.6, elR: 1.3, wpn: 0.9, lean: -0.1, hipR: 0.2, rootY: -0.1, twist: 0.3 })],
+  [0.3, pose({ shR: 1.55, elR: 0, wpn: 0, lean: 0.6, hipR: 1.0, knR: -0.6, hipL: -0.8, knL: -0.2, rootY: -0.25, shL: -0.8, twist: -0.45 })],
   [1, pose({ shR: 1.3, elR: 0.2, wpn: 0.2, lean: 0.45, hipR: 0.9, knR: -0.6, hipL: -0.7, knL: -0.2, rootY: -0.2, shL: -0.5 })],
 ];
 const AIR_SLASH: [number, Pose][] = [
@@ -535,6 +536,8 @@ export class StickmanScene {
   private swords: FlyingSword[] = [];
 
   private roomIdx = 0;
+  /** 落地挤压：1 刚落地，之后慢慢回到 0 */
+  private landSquash = 0;
   /** 这一局使用的场景配色，开局时选定 */
   private mapId: MapId = "maple";
   private roomW = 30;
@@ -1328,6 +1331,10 @@ export class StickmanScene {
     const rig = p.rig;
     rig.apply(this.playerPose());
     rig.group.position.copy(p.pos);
+    // 落地时身体短暂压扁、变宽，再弹回来
+    this.landSquash = Math.max(0, this.landSquash - dt * 5);
+    const sq = this.landSquash;
+    rig.group.scale.set(FIGURE_SCALE * (1 + 0.1 * sq), FIGURE_SCALE * (1 - 0.2 * sq), FIGURE_SCALE * (1 + 0.1 * sq));
     rig.group.rotation.y = p.facing > 0 ? -0.4 : Math.PI + 0.4;
     const blink = p.invuln > 0 && (!p.act || p.act.kind === "getup") && Math.floor(this.realTime * 20) % 2 === 0;
     rig.group.visible = !blink;
@@ -1349,6 +1356,7 @@ export class StickmanScene {
   private playerLanded(): void {
     const p = this.player;
     p.airSkills = 0;
+    this.landSquash = 1;
     this.puffs.emit(this.tmp.set(p.pos.x, 0.1, p.pos.z), 6, 0x2a2630, { speed: 2, life: 0.4, upward: true });
     const cb = p.onLand;
     p.onLand = null;

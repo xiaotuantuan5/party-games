@@ -103,9 +103,10 @@ export function Stickman({ onExit }: { onExit: () => void }) {
   /** 玩家点了「仍然竖屏玩」，暂时收起竖屏提示；转到横屏后会重新置回 */
   const [rotateSkipped, setRotateSkipped] = useState(false);
   /** 点了切换横屏但浏览器没有切过去 */
-  const [rotateFailed, setRotateFailed] = useState(false);
+  /** 浏览器不允许切换横屏（比如微信内置浏览器）时，把整个画面旋转成横屏显示 */
+  const [forced, setForced] = useState(false);
   const rotateSkippedRef = useRef(false);
-  const showRotate = portrait && !rotateSkipped;
+  const showRotate = portrait && !rotateSkipped && !forced;
   const [touch] = useState(isTouch);
   const [webglError, setWebglError] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
@@ -168,7 +169,7 @@ export function Stickman({ onExit }: { onExit: () => void }) {
       if (!p) {
         rotateSkippedRef.current = false;
         setRotateSkipped(false);
-        setRotateFailed(false);
+        setForced(false);
       }
     };
     onResize();
@@ -212,8 +213,9 @@ export function Stickman({ onExit }: { onExit: () => void }) {
   /** 竖屏时，玩家点按钮后请求全屏和横屏；浏览器没切过去就给出手动转屏的提示 */
   const tryLandscape = async () => {
     await enterLandscape();
+    // 等一下看系统有没有转过来；没有就用画面旋转代替
     window.setTimeout(() => {
-      if (window.innerHeight > window.innerWidth) setRotateFailed(true);
+      if (window.innerHeight > window.innerWidth) setForced(true);
     }, 500);
   };
 
@@ -248,12 +250,12 @@ export function Stickman({ onExit }: { onExit: () => void }) {
   const playing = phase === "playing";
 
   return (
-    <div className="sm-root">
+    <div className={forced ? "sm-root sm-forced" : "sm-root"}>
       <div className="sm-stage" ref={mount} />
       {webglError && <p className="sm-error">你的浏览器不支持 WebGL，没法显示 3D 画面 😢</p>}
 
       {playing && hud && !cine && <Hud hud={hud} onPause={() => { sceneRef.current?.setPaused(true); setPhase("paused"); }} />}
-      {playing && hud && !cine && sceneRef.current && <Controls scene={sceneRef.current} hud={hud} touch={touch} />}
+      {playing && hud && !cine && sceneRef.current && <Controls scene={sceneRef.current} hud={hud} touch={touch} forced={forced} />}
 
       {cine && playing && (
         <button type="button" className="sm-cine" onPointerDown={() => sceneRef.current?.skipCine()}>
@@ -477,7 +479,6 @@ export function Stickman({ onExit }: { onExit: () => void }) {
           <button type="button" className="sm-btn" onClick={() => void tryLandscape()}>
             ↻ 点这里切换横屏
           </button>
-          {rotateFailed && <p className="sm-best">没能自动切换，请手动把手机横过来</p>}
           <button type="button" className="sm-btn ghost" onClick={() => {
               rotateSkippedRef.current = true;
               setRotateSkipped(true);
@@ -543,7 +544,10 @@ function Hud({ hud, onPause }: { hud: StickHud; onPause: () => void }) {
 }
 
 /** 触屏操作：左边是浮动摇杆，右边是动作键；电脑上只显示按键提示 */
-function Controls({ scene, hud, touch }: { scene: StickmanScene; hud: StickHud; touch: boolean }) {
+/** 摇杆用的坐标：画面整体旋转 90 度时（forced），屏幕坐标要换算成画面里的坐标 */
+function Controls({ scene, hud, touch, forced }: { scene: StickmanScene; hud: StickHud; touch: boolean; forced: boolean }) {
+  const toLocal = (e: { clientX: number; clientY: number }) =>
+    forced ? { x: e.clientY, y: window.innerWidth - e.clientX } : { x: e.clientX, y: e.clientY };
   const stickRef = useRef<{ id: number; x: number; y: number } | null>(null);
   const [knob, setKnob] = useState<{ x: number; y: number; dx: number; dy: number } | null>(null);
   const R = 52;
@@ -553,14 +557,16 @@ function Controls({ scene, hud, touch }: { scene: StickmanScene; hud: StickHud; 
   const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (stickRef.current) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    stickRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
-    setKnob({ x: e.clientX, y: e.clientY, dx: 0, dy: 0 });
+    const p = toLocal(e);
+    stickRef.current = { id: e.pointerId, x: p.x, y: p.y };
+    setKnob({ x: p.x, y: p.y, dx: 0, dy: 0 });
   };
   const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const s = stickRef.current;
     if (!s || s.id !== e.pointerId) return;
-    let dx = e.clientX - s.x;
-    let dy = e.clientY - s.y;
+    const p = toLocal(e);
+    let dx = p.x - s.x;
+    let dy = p.y - s.y;
     const d = Math.hypot(dx, dy);
     if (d > R) {
       dx = (dx / d) * R;

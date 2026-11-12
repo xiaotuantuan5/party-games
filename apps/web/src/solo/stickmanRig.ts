@@ -78,23 +78,61 @@ export function keyed(p: number, keys: [number, Pose][]): Pose {
   return keys[keys.length - 1]![1];
 }
 
+/**
+ * 两段式腿部 IK：给定脚相对髋关节的位置（x 向前，y 向上为正，脚在髋下方时 y 为负），
+ * 算出髋和膝的旋转角。膝朝前弯，和人腿一致。
+ */
+export function legIK(fx: number, fy: number): { hip: number; knee: number } {
+  const L1 = THIGH;
+  const L2 = SHIN;
+  const d = clamp(Math.hypot(fx, fy), Math.abs(L1 - L2) + 1e-4, L1 + L2 - 1e-4);
+  const alpha = Math.atan2(fx, -fy);
+  const beta = Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1));
+  const gamma = Math.acos(clamp((L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2), -1, 1));
+  return { hip: alpha + beta, knee: gamma - Math.PI };
+}
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/**
+ * 跑步：脚有支撑段（贴地向后滑）和摆动段（抬起向前），两条腿错开半个周期。
+ * 手臂和对侧的腿反向摆，上身跟着步伐扭转，身体随步伐轻微起伏。
+ */
 export function runPose(phase: number, base: Pose = STANCE): Pose {
-  const s = Math.sin(phase);
+  const TAU = Math.PI * 2;
   const c = Math.cos(phase);
+  const rootY = -0.12 + 0.03 * Math.cos(2 * phase);
+  const STRIDE = 0.36;
+  const LIFT = 0.14;
+
+  // 某一条腿在周期 p 内的脚位置（相对髋）
+  const foot = (p: number): { fx: number; fy: number } => {
+    const q = ((p % TAU) + TAU) % TAU;
+    const stance = q < Math.PI;
+    const t = stance ? q / Math.PI : (q - Math.PI) / Math.PI;
+    const fx = stance ? STRIDE * (1 - 2 * t) : STRIDE * (-1 + 2 * t);
+    const lift = stance ? 0 : LIFT * Math.sin(Math.PI * t);
+    return { fx, fy: -(HIP_HEIGHT + rootY) + lift };
+  };
+  const fl = foot(phase);
+  const fr = foot(phase + Math.PI);
+  const L = legIK(fl.fx, fl.fy);
+  const R = legIK(fr.fx, fr.fy);
   return pose(
     {
-      rootY: -0.06 + Math.abs(c) * 0.07,
-      lean: 0.35,
-      hipL: 0.75 * s,
-      knL: -0.25 - 0.9 * Math.max(0, -c),
-      hipR: -0.75 * s,
-      knR: -0.25 - 0.9 * Math.max(0, c),
-      shL: -0.6 * s,
-      elL: 1.0,
-      shR: 0.4 + 0.45 * s,
-      elR: 1.1,
-      wpn: 1.1,
-      twist: -0.22 * s,
+      rootY,
+      lean: 0.12,
+      hipL: L.hip,
+      knL: L.knee,
+      hipR: R.hip,
+      knR: R.knee,
+      shL: -0.45 * c,
+      elL: 0.55,
+      shR: 0.3 + 0.4 * c,
+      elR: 0.6,
+      // 剑尖保持在身体前方一点，不随手臂乱晃
+      wpn: -0.5 - 0.4 * c,
+      twist: -0.22 * c,
     },
     base,
   );
