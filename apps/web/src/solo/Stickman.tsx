@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { SoundToggle } from "../fx";
 import { getBest, saveBest } from "./soloGames";
-import { GRADES, MAP_NAME, SKILLS, STATS, type Card, type Grade } from "./stickmanData";
+import { GRADES, MAP_NAME, ROLE_ORDER, ROLES, SKILLS, STATS, type Card, type Grade, type RoleId } from "./stickmanData";
 import { StickmanScene, type StickAction, type StickBanner, type StickHud, type StickResult } from "./stickmanScene";
 import "./Stickman.css";
 
 type Phase = "ready" | "playing" | "paused" | "cards" | "dead" | "over";
 
 const GRADE_KEY = "party.solo.stickman.grade";
+const ROLE_KEY = "party.solo.stickman.role";
+
+function savedRole(): RoleId {
+  const r = localStorage.getItem(ROLE_KEY);
+  return ROLE_ORDER.includes(r as RoleId) ? (r as RoleId) : "sword";
+}
 const SKILL_KEYS = ["U", "I", "O", "Y", "H", "N"];
 
 const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -75,6 +81,12 @@ export function Stickman({ onExit }: { onExit: () => void }) {
   const [cine, setCine] = useState(false);
   const [cineOn, setCineOn] = useState(true);
   const [flash, setFlash] = useState<{ kind: "white" | "red"; id: number } | null>(null);
+  const [tint, setTint] = useState<number | null>(null);
+  const [role, setRoleState] = useState<RoleId>(savedRole);
+  const setRole = (r: RoleId) => {
+    setRoleState(r);
+    localStorage.setItem(ROLE_KEY, r);
+  };
   const [fade, setFade] = useState(false);
   const [portrait, setPortrait] = useState(false);
   const [touch] = useState(isTouch);
@@ -109,6 +121,7 @@ export function Stickman({ onExit }: { onExit: () => void }) {
         onCine: setCine,
         onFlash: (kind) => setFlash({ kind, id: ++id }),
         onFade: setFade,
+        onTint: setTint,
       });
     } catch {
       setWebglError(true);
@@ -173,7 +186,7 @@ export function Stickman({ onExit }: { onExit: () => void }) {
     setHud(null);
     setCards([]);
     setPhase("playing");
-    sceneRef.current?.start();
+    sceneRef.current?.start(role);
   };
   const resume = () => {
     sceneRef.current?.setPaused(false);
@@ -224,6 +237,7 @@ export function Stickman({ onExit }: { onExit: () => void }) {
         </div>
       )}
       {flash && <div key={flash.id} className={`sm-flash ${flash.kind}`} />}
+      {tint !== null && playing && <div key={tint} className="sm-tint" style={{ "--tc": `#${tint.toString(16).padStart(6, "0")}` } as CSSProperties} />}
       <div className={`sm-fade ${fade ? "on" : ""}`} />
 
       {phase === "ready" && (
@@ -234,7 +248,7 @@ export function Stickman({ onExit }: { onExit: () => void }) {
           <h1 className="sm-title">火柴人刷图</h1>
           <p className="sm-sub">STICKMAN DUNGEON · {MAP_NAME}</p>
           <div className="sm-help">
-            <p>🗡 清掉每个房间的怪物，开门进下一间，最后打倒哥布林酋长</p>
+            <p>🗡 清掉每个房间的怪物，开门进下一间，最后打倒血煞堂主</p>
             <p>✨ 每清完一间，三选一：学新技能、强化技能或加属性</p>
             <p>🔥❄️⚡ 换着元素打：火 + 冰 = 蒸汽爆炸，雷 + 火 = 过载，冻住时重击 = 碎冰</p>
             <p>🌟 觉醒技「万剑归宗」：打怪攒满能量后释放</p>
@@ -244,6 +258,24 @@ export function Stickman({ onExit }: { onExit: () => void }) {
               <p>⌨️ WASD / 方向键移动 · J 攻击 · K 跳 · L 闪避 · U I O Y H N 技能 · 空格觉醒 · Esc 暂停</p>
             )}
           </div>
+          <div className="sm-roles" role="radiogroup" aria-label="选择角色">
+            {ROLE_ORDER.map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={role === id}
+                className={`sm-role ${role === id ? "on" : ""}`}
+                onClick={() => setRole(id)}
+              >
+                <span className="sm-role-icon">{ROLES[id].icon}</span>
+                <span className="sm-role-name">{ROLES[id].name}</span>
+              </button>
+            ))}
+          </div>
+          <p className="sm-role-desc">
+            {ROLES[role].desc} · 技能：{ROLES[role].start.map((s) => SKILLS[s].name).join("、")} · 觉醒：{ROLES[role].awaken.name}
+          </p>
           {best > 0 && (
             <p className="sm-best">
               🏆 最高分 {best.toLocaleString()}

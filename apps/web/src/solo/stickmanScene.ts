@@ -11,10 +11,10 @@ import {
   ENEMIES,
   MAX_SKILL_LEVEL,
   MAX_SLOTS,
-  NEW_SKILL_POOL,
   ROOMS,
   SKILLS,
-  START_SKILLS,
+  ROLES,
+  type RoleId,
   STATS,
   gradeFor,
   type Card,
@@ -25,6 +25,7 @@ import {
   type Spawn,
   type StatId,
 } from "./stickmanData";
+import { buildTheme, type Theme } from "./stickmanTheme";
 import { DamageNumbers, FXGEO, FxSystem, Particles, Trail, type NumberStyle } from "./stickmanFx";
 import { BugModel, P, STANCE, StickRig, glowMat, idlePose, keyed, mixPose, pose, runPose, type Debris, type Model, type Pose } from "./stickmanRig";
 
@@ -93,6 +94,8 @@ export interface StickHooks {
   /** 中 / 重档运镜开始和结束，界面据此隐藏按键、显示「点击跳过」 */
   onCine: (active: boolean) => void;
   onFlash: (kind: "white" | "red") => void;
+  /** 觉醒时的画面主色调，null 表示恢复 */
+  onTint: (color: number | null) => void;
   /** 切房间时黑场 */
   onFade: (on: boolean) => void;
 }
@@ -462,6 +465,13 @@ function rockGeometry(seed: number): THREE.BufferGeometry {
   return g;
 }
 
+/** 大招的运镜、时间点和效果 */
+interface AwakenPlan {
+  shots: Shot[];
+  end: number;
+  events: { at: number; fn: () => void }[];
+}
+
 export class StickmanScene {
   private renderer: THREE.WebGLRenderer;
   private composer: EffectComposer;
@@ -492,8 +502,12 @@ export class StickmanScene {
   private bigSword: THREE.Mesh;
   private env = new THREE.Group();
   private doorMat = new THREE.MeshBasicMaterial({ color: 0xff3020, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-  private flames: THREE.Mesh[] = [];
-  private torchLights: THREE.PointLight[] = [];
+  private role: RoleId = "sword";
+  private theme: Theme | null = null;
+  private lastDodge = -99;
+  private bellT = 0;
+  private stealthT = 0;
+  private traps: { pos: THREE.Vector3; r: number; t: number; dur: number; tick: number }[] = [];
 
   private fx: FxSystem;
   private sparks = new Particles(2500, 0.14);
@@ -636,11 +650,20 @@ export class StickmanScene {
 
   // ================= 对外接口 =================
 
-  start(): void {
+  start(role: RoleId): void {
+    this.setRole(role);
     this.resetRun();
     this.state = "playing";
     this.paused = false;
     this.loadRoom(0);
+  }
+
+  private setRole(role: RoleId): void {
+    this.role = role;
+    this.player.rig.dispose();
+    const rig = new StickRig({ color: 0xf4f8ff, glow: 0.55, weapon: ROLES[role].weapon, outline: true });
+    this.scene.add(rig.group);
+    this.player.rig = rig;
   }
 
   setPaused(paused: boolean): void {
@@ -771,7 +794,7 @@ export class StickmanScene {
   // ================= 场景搭建 =================
 
   private makePlayer(): Player {
-    const rig = new StickRig({ color: 0xf4f8ff, glow: 0.55, weapon: "sword", outline: true });
+    const rig = new StickRig({ color: 0xf4f8ff, glow: 0.55, weapon: ROLES[this.role].weapon, outline: true });
     this.scene.add(rig.group);
     const shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
     shadow.rotation.x = -Math.PI / 2;
@@ -798,140 +821,22 @@ export class StickmanScene {
   }
 
   private disposeEnv(): void {
-    this.env.traverse((o) => {
-      if (o instanceof THREE.Mesh && o.userData.own) {
-        o.geometry.dispose();
-        (o.material as THREE.Material).dispose();
-      } else if (o instanceof THREE.Mesh && o.name === "portal") o.geometry.dispose();
-    });
+    this.theme?.dispose();
+    this.theme = null;
     this.env.clear();
-    for (const l of this.torchLights) l.dispose();
-    this.torchLights = [];
-    this.flames = [];
   }
 
-  /** 洞窟：地面、背后的岩壁、左边的乱石、右边的门、火把 */
+  /** 按房间搭古风场景（见 stickmanTheme.ts） */
   private buildRoom(idx: number): void {
     this.disposeEnv();
     const def = ROOMS[idx]!;
-    const W = def.width;
-    this.roomW = W;
-    const own = <T extends THREE.Mesh>(m: T) => {
-      m.userData.own = true;
-      return m;
-    };
-
-    // 地面：顶点颜色做出一块块石板
-    const gw = W + 30;
-    const ground = new THREE.PlaneGeometry(gw, 20, Math.round(gw / 1.5), 13);
-    ground.rotateX(-Math.PI / 2);
-    const cols: number[] = [];
-    const gp = ground.attributes.position as THREE.BufferAttribute;
-    const base = def.boss ? new THREE.Color(0x2a1a1c) : new THREE.Color(0x24222c);
-    for (let i = 0; i < gp.count; i++) {
-      const z = gp.getZ(i);
-      const inside = Math.abs(z) < Z_LIMIT + 0.6 ? 1.25 : 0.7;
-      const n = 0.8 + Math.random() * 0.4;
-      cols.push(base.r * n * inside, base.g * n * inside, base.b * n * inside);
-      gp.setY(i, Math.abs(z) > Z_LIMIT + 1 ? Math.random() * 0.25 : 0);
-    }
-    ground.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3));
-    ground.computeVertexNormals();
-    const g = own(new THREE.Mesh(ground, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true })));
-    g.position.set(W / 2, 0, 0);
-    this.env.add(g);
-
-    // 背后的岩壁和头顶的钟乳石
-    for (let x = -8; x < W + 8; x += 1.4) {
-      const r = new THREE.Mesh(pickOne(this.rockGeos), Math.random() < 0.5 ? this.rockMat : this.rockMat2);
-      r.position.set(x + rand(-0.4, 0.4), rand(0.4, 2.8), -5.4 + rand(-0.6, 0.4));
-      r.scale.set(rand(1.1, 1.8), rand(1.8, 3.2), rand(0.8, 1.2));
-      r.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3));
-      this.env.add(r);
-      if (Math.random() < 0.35) {
-        const s = new THREE.Mesh(pickOne(this.rockGeos), this.rockMat2);
-        s.position.set(x, rand(6.5, 8), -4.2 + rand(-0.8, 0.8));
-        s.scale.set(0.35, rand(1.2, 2.4), 0.35);
-        this.env.add(s);
-      }
-    }
-    const backdrop = own(new THREE.Mesh(new THREE.PlaneGeometry(W + 60, 30), new THREE.MeshBasicMaterial({ color: 0x0a0910 })));
-    backdrop.position.set(W / 2, 8, -8);
-    this.env.add(backdrop);
-    // 左边入口的乱石、镜头一侧的前景石头（平时看不到，运镜时能看到）
-    for (let z = -5; z <= 5; z += 1.2) {
-      const r = new THREE.Mesh(pickOne(this.rockGeos), this.rockMat);
-      r.position.set(-1.6 + rand(-0.5, 0.3), rand(0.3, 1.8), z);
-      r.scale.set(rand(1, 1.5), rand(1.4, 2.6), rand(0.9, 1.3));
-      this.env.add(r);
-    }
-    // 放得比运镜机位（离角色最多约 7）更远，镜头不会钻进石头里
-    for (let x = -4; x < W + 4; x += 3.2) {
-      const r = new THREE.Mesh(pickOne(this.rockGeos), this.rockMat2);
-      r.position.set(x + rand(-1, 1), rand(-0.2, 0.3), rand(10.5, 12));
-      r.scale.set(rand(0.8, 1.6), rand(0.4, 0.9), rand(0.8, 1.2));
-      this.env.add(r);
-    }
-
-    // 右端：普通房间是一道门，Boss 房是酋长的王座
-    if (def.boss) {
-      for (let z = -5; z <= 5; z += 1.2) {
-        const r = new THREE.Mesh(pickOne(this.rockGeos), this.rockMat);
-        r.position.set(W + 1.6 + rand(-0.3, 0.5), rand(0.3, 2), z);
-        r.scale.set(rand(1, 1.5), rand(1.6, 3), rand(0.9, 1.3));
-        this.env.add(r);
-      }
-      const throne = own(new THREE.Mesh(new THREE.BoxGeometry(2.4, 3.4, 1.6), new THREE.MeshStandardMaterial({ color: 0x4a2a1a, roughness: 0.9, flatShading: true })));
-      throne.position.set(W - 2, 1.7, -4);
-      this.env.add(throne);
-      const skull = own(new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), glowMat(0xff4a2a, 1.4)));
-      skull.position.set(W - 2, 3.8, -3.4);
-      this.env.add(skull);
-    } else {
-      const pillarGeo = new THREE.BoxGeometry(0.9, 4.4, 0.9);
-      const pillarMat = new THREE.MeshStandardMaterial({ color: 0x4a4250, roughness: 0.85, flatShading: true });
-      for (const z of [-2.7, 2.7]) {
-        const p = own(new THREE.Mesh(pillarGeo.clone(), pillarMat.clone()));
-        p.position.set(W + 0.4, 2.2, z);
-        this.env.add(p);
-      }
-      pillarGeo.dispose();
-      pillarMat.dispose();
-      const lintel = own(new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.8, 6.4), new THREE.MeshStandardMaterial({ color: 0x4a4250, roughness: 0.85, flatShading: true })));
-      lintel.position.set(W + 0.4, 4.6, 0);
-      this.env.add(lintel);
-      const portal = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 4.2), this.doorMat);
-      portal.userData.own = false;
-      portal.rotation.y = -Math.PI / 2;
-      portal.position.set(W + 0.6, 2.1, 0);
-      portal.name = "portal";
-      this.env.add(portal);
-      this.doorMat.color.set(0xff3020).multiplyScalar(0.9);
-    }
-
-    // 火把：岩壁上的小火苗 + 两盏点光源
-    const torchColor = def.boss ? 0xff4a2a : 0xffa040;
-    for (let x = 4; x < W - 2; x += 8) {
-      const stick = own(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.7, 6), new THREE.MeshStandardMaterial({ color: 0x3a2a1a })));
-      stick.position.set(x, 2.6, -4.3);
-      stick.rotation.x = 0.4;
-      const flame = own(
-        new THREE.Mesh(
-          new THREE.ConeGeometry(0.16, 0.5, 8),
-          new THREE.MeshBasicMaterial({ color: new THREE.Color(torchColor).multiplyScalar(2.5), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }),
-        ),
-      );
-      flame.position.set(x, 3.1, -4.15);
-      this.flames.push(flame);
-      this.env.add(stick, flame);
-    }
-    for (const fx of [0.3, 0.7]) {
-      const l = new THREE.PointLight(torchColor, 9, 14, 1.6);
-      l.position.set(W * fx, 3.2, -3.4);
-      this.torchLights.push(l);
-      this.env.add(l);
-    }
-    this.hemi.intensity = def.boss ? 0.75 : 0.9;
+    this.roomW = def.width;
+    this.theme = buildTheme(this.env, idx, def.width, this.doorMat);
+    this.scene.background = new THREE.Color(this.theme.fog);
+    this.scene.fog = new THREE.Fog(this.theme.fog, 22, 50);
+    this.hemi.color.set(this.theme.sky);
+    this.hemi.groundColor.set(this.theme.ground);
+    this.hemi.intensity = this.theme.hemi;
   }
 
   private openDoor(): void {
@@ -944,7 +849,7 @@ export class StickmanScene {
   private resetRun(): void {
     this.clearRoom();
     const p = this.player;
-    p.hp = p.maxHp = PLAYER_HP;
+    p.hp = p.maxHp = ROLES[this.role].hp;
     p.mp = PLAYER_MP;
     p.act = null;
     p.invuln = 0;
@@ -953,7 +858,10 @@ export class StickmanScene {
     p.onLand = null;
     p.rig.tint(null);
     if (!p.rig.group.parent) this.scene.add(p.rig.group);
-    this.slots = [...START_SKILLS];
+    this.slots = [...ROLES[this.role].start];
+    this.lastDodge = -99;
+    this.bellT = 0;
+    this.stealthT = 0;
     this.cds = {};
     this.levels = {};
     this.upgrades.clear();
@@ -1000,6 +908,7 @@ export class StickmanScene {
     this.hits = [];
     this.fields = [];
     this.patches = [];
+    this.traps = [];
     this.waves = [];
     this.debris = [];
     this.ghosts = [];
@@ -1090,6 +999,7 @@ export class StickmanScene {
       this.updateEnemies(dt);
       this.updateShots(dt);
       this.updateFields(dt);
+      this.updateTraps(dt);
       this.updateWaves(dt);
       this.updateRoom(dt);
     } else if (this.state === "dead") {
@@ -1130,8 +1040,7 @@ export class StickmanScene {
     this.puffs.update(fxDt);
     this.numbers.update(fxDt);
     this.updateTrail();
-    for (const f of this.flames) f.scale.set(1 + Math.sin(this.realTime * 23 + f.position.x) * 0.15, 1 + Math.sin(this.realTime * 17 + f.position.x) * 0.25, 1);
-    for (const l of this.torchLights) l.intensity = 8 + Math.sin(this.realTime * 13 + l.position.x) * 1.2;
+    this.theme?.update(realDt, this.realTime);
 
     this.director.update(realDt, this.player.pos.x, this.player.pos.y);
     this.hudIn -= realDt;
@@ -1231,7 +1140,7 @@ export class StickmanScene {
   }
 
   private atk(): number {
-    return BASE_ATK * (1 + this.stats.atk * 0.2);
+    return BASE_ATK * (ROLES[this.role].atk / 100) * (1 + this.stats.atk * 0.2);
   }
 
   private has(upgrade: string): boolean {
@@ -1290,6 +1199,7 @@ export class StickmanScene {
       else act.dir.set(-p.facing, 0, 0);
       p.invuln = Math.max(p.invuln, 0.3);
       p.dodgeCd = 0.9;
+      this.lastDodge = this.realTime;
       if (this.stats.dodgeBuff) p.dodgeBuff = 2;
       sfx.glide(true);
       return true;
@@ -1355,6 +1265,8 @@ export class StickmanScene {
       p.dodgeCd = Math.max(0, p.dodgeCd - dt);
       p.dodgeBuff = Math.max(0, p.dodgeBuff - dt);
       p.invuln = Math.max(0, p.invuln - dt);
+      this.bellT = Math.max(0, this.bellT - dt);
+      this.stealthT = Math.max(0, this.stealthT - dt);
       p.mp = Math.min(PLAYER_MP, p.mp + MP_REGEN * (1 + this.stats.mpRegen * 0.4) * dt);
       if (this.dashCharge > 0 && (this.cds.dash ?? 0) < this.skillCd("dash") - 1) this.dashCharge = 0;
       if (this.comboT > 0) {
@@ -1415,6 +1327,7 @@ export class StickmanScene {
     rig.group.rotation.y = p.facing > 0 ? -0.4 : Math.PI + 0.4;
     const blink = p.invuln > 0 && (!p.act || p.act.kind === "getup") && Math.floor(this.realTime * 20) % 2 === 0;
     rig.group.visible = !blink;
+    rig.setOpacity(this.stealthT > 0 ? 0.22 : 1);
     const el = act?.skill ? SKILLS[act.skill].element : null;
     const upEl = act?.skill === "airDance" && this.has("airDance.fire") ? "fire" : act?.skill === "rise" && this.has("rise.shock") ? "thunder" : null;
     const tintEl = el ?? upEl;
@@ -1576,7 +1489,7 @@ export class StickmanScene {
       case "dead":
         return mixPose(P.hurt, P.down, Math.min(1, act.t * 2.5));
       case "awaken":
-        return AWAKEN;
+        return this.awakenPose();
       case "skill":
         return this.skillPose(act, k);
     }
@@ -1669,6 +1582,9 @@ export class StickmanScene {
       case "frost":
         this.startAct("skill", 0.6, 0.42, id);
         sfx.swing(true);
+        break;
+      default:
+        this.beginRoleSkill(id, mv);
         break;
     }
   }
@@ -1867,6 +1783,8 @@ export class StickmanScene {
         }
         return GRAVITY;
       }
+      default:
+        return this.updateRoleSkill(act, dt, mv, at);
     }
   }
 
@@ -1893,6 +1811,8 @@ export class StickmanScene {
           [0.35, KNEEL],
           [1, KNEEL],
         ]);
+      default:
+        return this.roleSkillPose(act, k);
     }
   }
 
@@ -2439,7 +2359,7 @@ export class StickmanScene {
           color: def.color,
           glow: 0.12,
           scale,
-          weapon: kind === "goblin" ? "club" : kind === "archer" ? "bow" : "none",
+          weapon: kind === "goblin" ? "dagger" : kind === "archer" ? "bow" : "none",
           hat: kind === "goblin",
           quiver: kind === "archer",
           shield: kind === "shield",
@@ -3149,8 +3069,9 @@ export class StickmanScene {
     if (this.state !== "playing" || p.invuln > 0 || this.cineLock > 0 || this.script) return;
     const k = p.act?.kind;
     if (k === "awaken" || k === "down" || k === "getup" || k === "dead") return;
-    const v = Math.round(dmg * rand(0.9, 1.1));
+    const v = Math.round(dmg * rand(0.9, 1.1) * (this.bellT > 0 ? 0.5 : 1));
     p.hp -= v;
+    if (this.bellT > 0 && this.has("bell.reflect")) this.aoe(p.pos.clone(), 2.4, dmg * 0.6, null);
     this.hitsTaken++;
     this.combo = 0;
     this.comboT = 0;
@@ -3379,7 +3300,7 @@ export class StickmanScene {
 
   private drawCards(): Card[] {
     const owned = new Set(this.slots);
-    const newSkills: Card[] = this.slots.length < MAX_SLOTS ? NEW_SKILL_POOL.filter((s) => !owned.has(s)).map((s) => ({ kind: "skill", skill: s })) : [];
+    const newSkills: Card[] = this.slots.length < MAX_SLOTS ? ROLES[this.role].pool.filter((s) => !owned.has(s)).map((s) => ({ kind: "skill", skill: s })) : [];
     const ups: Card[] = this.slots.flatMap((s) =>
       (this.levels[s] ?? 0) < MAX_SKILL_LEVEL
         ? SKILLS[s].upgrades.filter((u) => !this.upgrades.has(u.id)).map((u): Card => ({ kind: "upgrade", skill: s, upgrade: u.id }))
@@ -3412,7 +3333,7 @@ export class StickmanScene {
     } else {
       this.stats[c.stat]++;
       if (c.stat === "maxHp") {
-        p.maxHp = Math.round(PLAYER_HP * (1 + 0.2 * this.stats.maxHp));
+        p.maxHp = Math.round(ROLES[this.role].hp * (1 + 0.2 * this.stats.maxHp));
         p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);
       }
     }
@@ -3473,7 +3394,7 @@ export class StickmanScene {
   }
 
   /** 觉醒技：万剑归宗 */
-  private startAwaken(): void {
+  private startSwordAwaken(): void {
     const p = this.player;
     const f = p.facing;
     this.startAct("awaken", 99, 99);
@@ -3664,6 +3585,761 @@ export class StickmanScene {
       revived: this.revived,
       breakdown,
     });
+  }
+
+  // ================= 枪客 / 拳师 / 暗器师 / 扇舞者 =================
+
+  private startAwaken(): void {
+    if (this.role === "sword") this.startSwordAwaken();
+    else this.startRoleAwaken();
+  }
+
+  private mod(id: SkillId, key: "dmg" | "size" | "cd" | "dur"): number {
+    let m = 1;
+    for (const u of SKILLS[id].upgrades) {
+      const v = u.mod?.[key];
+      if (v && this.upgrades.has(u.id)) m *= v;
+    }
+    return m;
+  }
+
+  private petal(at: { x: number; y: number; z: number }, n: number, color: number, speed = 5, life = 0.9): void {
+    this.theme?.petals.burst(at, n, color, speed, life);
+  }
+
+  /** 一道发光的线，从 from 沿 dir 画出长度 len（枪尖、飞刀的轨迹） */
+  private line(from: THREE.Vector3, dir: THREE.Vector3, len: number, width: number, color: number, life: number): void {
+    const m = this.fx.spawn({ geo: FXGEO.beam, color, k: 2.6, pos: from, scale: [width, len, width], scaleTo: [width * 0.3, len, width * 0.3], life, opacity: 1, opacityTo: 0 });
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+  }
+
+  /** 竖直放着的半圆剑光，朝向镜头 */
+  private arcFx(at: { x: number; y: number; z: number }, r: number, color: number, life: number, spin = 0, k = 2.6, angle = 0): void {
+    const f = this.player.facing;
+    this.fx.spawn({ geo: FXGEO.arc, color, k, pos: [at.x, at.y, at.z], rot: [0, f > 0 ? 0 : Math.PI, angle], scale: r, scaleTo: r * 1.15, life, spin: [0, 0, spin] });
+  }
+
+  /** 地面上的墨迹 */
+  private ink(x: number, z: number, r: number, life: number): void {
+    this.fx.spawn({ geo: FXGEO.disk, color: 0x0a0a12, k: 1, additive: false, pos: [x, 0.03, z], rot: [-Math.PI / 2, 0, 0], scale: r * 0.3, scaleTo: r, life, opacity: 0.85, opacityTo: 0 });
+  }
+
+  /** 一条青龙：一串渐细的光珠沿直线冲出去 */
+  private dragon(from: THREE.Vector3, f: number, color: number, life: number, speed: number, count = 14): void {
+    for (let i = 0; i < count; i++) {
+      const s = 0.22 * (1 - i / (count + 2)) + 0.05;
+      this.fx.spawn({
+        geo: FXGEO.sphere,
+        color,
+        k: 2.4,
+        pos: [from.x + f * i * 0.25, from.y + Math.sin(i * 0.7) * 0.22, from.z],
+        scale: s,
+        scaleTo: s * 0.4,
+        life,
+        opacity: 0.95,
+        opacityTo: 0,
+        vel: [f * speed, 0, 0],
+        delay: i * 0.02,
+        easeOut: false,
+      });
+    }
+    this.petal(from, 10, color, 2, 0.6);
+  }
+
+  private dart(x: number, y: number, z: number, vx: number, vy: number, vz: number, life: number): void {
+    const dir = new THREE.Vector3(vx, vy, vz);
+    const m = this.fx.spawn({ geo: FXGEO.beam, color: 0xe8f0ff, k: 3, pos: [x, y, z], scale: [0.03, 0.55, 0.03], life, vel: [vx, vy, vz] });
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+  }
+
+  private beginRoleSkill(id: SkillId, mv: THREE.Vector2): void {
+    const p = this.player;
+    const f = p.facing;
+    const timing: Partial<Record<SkillId, [number, number]>> = {
+      longOut: [0.35, 0.2],
+      backStab: [this.realTime - this.lastDodge < 1 ? 0.4 : 0.5, 0.3],
+      sweep: [0.6, 0.35],
+      plumBlossom: [0.85, 0.45],
+      powerPunch: [0.9, 0.6],
+      quake: [0.75, 0.45],
+      whirl: [0.8 * this.mod(id, "dur"), 0.5],
+      bell: [4 * this.mod(id, "dur"), 99],
+      flyKnife: [0.35, 0.2],
+      fanDarts: [0.45, 0.3],
+      shadowStep: [0.7, 0.5],
+      caltrops: [0.5, 0.3],
+      flyingFan: [0.7, 0.4],
+      sleeveHook: [0.5, 0.3],
+      inkStorm: [3.2 * this.mod(id, "dur"), 99],
+      fanWave: [0.4, 0.25],
+    };
+    const [dur, cancel] = timing[id] ?? [0.5, 0.3];
+    const act = this.startAct("skill", dur, cancel, id);
+    act.dir.set(f, 0, mv.y * 0.4);
+    if (id === "backStab" && this.realTime - this.lastDodge < 1) act.n = 1;
+    if (id === "bell") this.bellT = dur;
+    if (id === "shadowStep") {
+      this.stealthT = 3 * this.mod(id, "dur");
+      p.rig.setOpacity(0.22);
+      this.petal({ x: p.pos.x, y: p.pos.y + 1, z: p.pos.z }, 16, 0x7a6a8a, 3, 0.8);
+    }
+    if (id === "caltrops") this.spawnTrap();
+    sfx.swing(id === "powerPunch" || id === "quake");
+  }
+
+  private spawnTrap(): void {
+    const p = this.player;
+    const r = 2.2 * this.mod("caltrops", "size");
+    const pos = p.pos.clone().setY(0);
+    const dur = 6 * this.mod("caltrops", "dur");
+    this.traps.push({ pos, r, t: 0, dur, tick: 0 });
+    this.fx.spawn({ geo: FXGEO.disk, color: 0x6aa84a, k: 1.2, additive: false, pos: [pos.x, 0.04, pos.z], rot: [-Math.PI / 2, 0, 0], scale: r, life: dur, opacity: 0.35, opacityTo: 0.15 });
+    for (let i = 0; i < 16; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = Math.sqrt(Math.random()) * r;
+      this.fx.spawn({ geo: FXGEO.slash, color: 0xc8d4e8, k: 2, pos: [pos.x + Math.cos(a) * d, 0.08, pos.z + Math.sin(a) * d], rot: [-Math.PI / 2, 0, Math.random() * Math.PI], scale: 0.35, life: dur, opacity: 0.9, opacityTo: 0.4 });
+    }
+  }
+
+  private updateTraps(dt: number): void {
+    for (let i = this.traps.length - 1; i >= 0; i--) {
+      const tr = this.traps[i]!;
+      tr.t += dt;
+      tr.tick -= dt;
+      if (tr.t >= tr.dur) {
+        this.traps.splice(i, 1);
+        continue;
+      }
+      const hurt = tr.tick <= 0;
+      for (const e of this.enemies) {
+        if (e.dead || Math.hypot(e.pos.x - tr.pos.x, e.pos.z - tr.pos.z) > tr.r + e.radius) continue;
+        e.slow = Math.max(e.slow, 0.3);
+        if (hurt) this.damageEnemy(e, { dmg: 0.5 * this.atk() * this.mod("caltrops", "dmg"), kb: 0, up: 0, hitstop: 0, element: null, heavy: false, color: 0xbfe6a0 }, tr.pos.x);
+      }
+      if (hurt) tr.tick = 0.5;
+    }
+  }
+
+  private updateRoleSkill(act: PAct, dt: number, mv: THREE.Vector2, at: (t: number) => boolean): number {
+    const p = this.player;
+    const f = p.facing;
+    const id = act.skill!;
+    const atk = this.atk();
+    const m = (k: "dmg" | "size" | "cd" | "dur") => this.mod(id, k);
+    const from = () => new THREE.Vector3(p.pos.x, p.pos.y + 1.2, p.pos.z);
+    const hitStop = 0.05;
+    switch (id) {
+      case "longOut": {
+        p.vel.x = f * 1.5;
+        if (at(0.08)) {
+          const L = 9 * m("size");
+          const el = this.has("longOut.fire") ? "fire" : null;
+          const start = from();
+          this.line(start, new THREE.Vector3(f, 0, 0), L, 0.09, 0x7affd8, 0.35);
+          this.dragon(start, f, 0x7affd8, 0.45, 26);
+          for (const dz of this.has("longOut.twin") ? [-0.7, 0.7] : [0]) {
+            this.addHit({ follow: false, x: p.pos.x + f * (0.6 + L / 2), z: p.pos.z + dz, vx: 0, vz: 0, hw: L / 2, hd: 0.4, y0: p.pos.y + 0.5, y1: p.pos.y + 2, dur: 0.1, dmg: 2.2 * atk * m("dmg"), kb: 6, up: 0, hitstop: 0.06, heavy: true, element: el });
+          }
+          sfx.swing(true);
+          this.director.kick(0.04, 0, 0.2);
+        }
+        return GRAVITY;
+      }
+      case "backStab": {
+        if (act.t < 0.15) p.vel.x = -f * 5;
+        else p.vel.x *= Math.max(0, 1 - dt * 10);
+        if (at(0.18)) {
+          const heavy = act.n ? 1.5 : 1;
+          this.addHit({ follow: true, ox: 1.6, hw: 1.6, hd: 0.5, y0: 0.3, y1: 2, dur: 0.1, dmg: 2.4 * atk * m("dmg") * heavy, kb: 7, up: 0, hitstop: 0.07, heavy: true, element: null });
+          this.line(from(), new THREE.Vector3(f, 0, 0), 3.2, 0.09, 0x7affd8, 0.3);
+          this.dragon(from(), f, 0x7affd8, 0.3, 22, 8);
+          if (this.has("backStab.wind")) this.aoe(p.pos, 2.4, atk * 0.8, null);
+          sfx.swing(true);
+        }
+        return GRAVITY;
+      }
+      case "sweep": {
+        p.vel.x *= Math.max(0, 1 - dt * 8);
+        if (at(0.12) || at(0.36)) {
+          const r = 3 * m("size");
+          this.addHit({ follow: true, ox: 0, shape: "circle", r, y0: 0, y1: 2.4, dur: 0.1, dmg: 1.9 * atk * m("dmg"), kb: 4, up: this.has("sweep.knock") ? 9 : 5, hitstop: hitStop, heavy: true, element: null, radial: true });
+          this.arcFx({ x: p.pos.x, y: p.pos.y + 1.2, z: p.pos.z + 0.3 }, r, 0xcfeeff, 0.35, 16, 2.4);
+          this.petal({ x: p.pos.x, y: p.pos.y + 1, z: p.pos.z }, 18, 0x7affd8, 6, 0.8);
+          sfx.swing(true);
+        }
+        return GRAVITY;
+      }
+      case "plumBlossom": {
+        p.vel.x *= Math.max(0, 1 - dt * 6);
+        const n = this.has("plumBlossom.more") ? 5 : 3;
+        for (let i = 0; i < n; i++) {
+          if (!at(0.12 + i * 0.14)) continue;
+          const x = p.pos.x + f * (1.8 + i * 0.5);
+          const z = p.pos.z + (i % 2 ? 0.5 : -0.5);
+          this.addHit({ follow: false, x, z, vx: 0, vz: 0, shape: "circle", r: 1.1, y0: p.pos.y, y1: p.pos.y + 2.2, dur: 0.06, dmg: 1.2 * atk * m("dmg"), kb: 3, up: 0, hitstop: 0.03, heavy: false, element: this.has("plumBlossom.frost") ? "ice" : null });
+          this.petal({ x, y: p.pos.y + 1.4, z }, 14, 0xff6a8a, 4, 0.9);
+          this.arcFx({ x, y: p.pos.y + 1.3, z }, 0.9, 0xff8aa0, 0.25, 0, 2.6, f > 0 ? 0 : 0);
+          sfx.slashHit(false);
+        }
+        if (at(0.5 + (n - 3) * 0.14)) {
+          const x = p.pos.x + f * 3;
+          this.addHit({ follow: false, x, z: p.pos.z, vx: 0, vz: 0, shape: "circle", r: 2.4, y0: 0, y1: 2.5, dur: 0.06, dmg: 1.5 * atk * m("dmg"), kb: 6, up: 6, hitstop: 0.06, heavy: true, element: null, radial: true });
+          this.groundRing(x, p.pos.z, 2.4, 0xff8aa0, 0.4);
+        }
+        return GRAVITY;
+      }
+      case "powerPunch": {
+        p.vel.x = 0;
+        p.vel.z = 0;
+        if (act.t < 0.5) {
+          // 蓄力：身后压下一座山影，地面的金光向拳头聚拢
+          if (Math.random() < dt * 40) this.arcFx({ x: p.pos.x - f * 1.6, y: p.pos.y + 1.2, z: p.pos.z - 0.6 }, 1.8 + Math.random() * 0.6, 0xe0b050, 0.25, 6, 1.4);
+        }
+        if (at(0.5)) {
+          const x = p.pos.x + f * 1.4;
+          this.addHit({ follow: true, ox: 1.2, hw: 1.2, hd: 0.7, y0: 0, y1: 2.3, dur: 0.08, dmg: 3.2 * atk * m("dmg"), kb: 9, up: 4, hitstop: 0.09, heavy: true, element: null });
+          this.groundRing(x, p.pos.z, 2.8 * m("size"), 0xffc83a, 0.45);
+          this.aoe(this.tmp.set(x, 0, p.pos.z).clone(), 2.8 * m("size"), 1.2 * atk, null);
+          this.dust(x, p.pos.z, 16);
+          this.director.shake(0.35);
+          this.hooks.onFlash("white");
+          sfx.blast();
+          vibrate(50);
+        }
+        return 0;
+      }
+      case "quake": {
+        p.vel.x *= Math.max(0, 1 - dt * 8);
+        if (at(0.3)) {
+          const r = 3.6 * m("size");
+          for (let i = 0; i < 3; i++) this.groundRing(p.pos.x, p.pos.z, r * (0.4 + i * 0.3), 0xffc83a, 0.4 + i * 0.1);
+          for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2;
+            this.fx.spawn({ geo: FXGEO.slash, color: 0xffa040, k: 2.4, pos: [p.pos.x + Math.cos(a) * 1.4, 0.06, p.pos.z + Math.sin(a) * 1.4], rot: [-Math.PI / 2, 0, a], scale: [1.4, 0.12, 1], scaleTo: [2.2, 0.06, 1], life: 1.2 });
+            if (this.has("quake.crack")) this.patches.push({ pos: new THREE.Vector3(p.pos.x + Math.cos(a) * 2, 0, p.pos.z + Math.sin(a) * 2), t: 0, tick: 0 });
+          }
+          this.aoe(p.pos.clone(), r, 2.4 * atk * m("dmg"), null);
+          this.director.shake(0.4);
+          this.dust(p.pos.x, p.pos.z, 20);
+          sfx.blast();
+        }
+        return GRAVITY;
+      }
+      case "whirl": {
+        p.vel.x = mv.x * 1.5;
+        if (act.t < 0.1 || Math.floor(act.t / 0.18) !== Math.floor((act.t - dt) / 0.18)) {
+          const r = 2.2 * m("size");
+          this.arcFx({ x: p.pos.x, y: p.pos.y + 0.8, z: p.pos.z }, r, 0xffc83a, 0.2, 18, 2.2);
+        }
+        if (Math.floor(act.t / 0.25) !== Math.floor((act.t - dt) / 0.25)) {
+          this.addHit({ follow: true, ox: 0, shape: "circle", r: 2.2 * m("size"), y0: 0, y1: 1.8, dur: 0.1, dmg: 0.9 * atk * m("dmg"), kb: 3, up: this.has("whirl.knock") ? 6 : 0, hitstop: 0.02, heavy: false, element: null, radial: true });
+        }
+        return GRAVITY;
+      }
+      case "bell": {
+        p.vel.x *= Math.max(0, 1 - dt * 8);
+        if (Math.floor(act.t / 0.2) !== Math.floor((act.t - dt) / 0.2)) {
+          this.fx.spawn({ geo: FXGEO.ring, color: 0xffc83a, k: 2, pos: [p.pos.x, p.pos.y + 1.1, p.pos.z], rot: [-Math.PI / 2, 0, 0], scale: 0.8, scaleTo: 1.4, life: 0.4, opacity: 0.9, opacityTo: 0 });
+        }
+        if (act.t >= act.dur && !act.landed) {
+          act.landed = true;
+          if (this.has("bell.heal")) {
+            p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.2);
+            this.numbers.show(this.tmp.set(p.pos.x, p.pos.y + 2, p.pos.z), Math.round(p.maxHp * 0.2), "heal");
+          }
+        }
+        return GRAVITY;
+      }
+      case "flyKnife": {
+        p.vel.x = f * 1;
+        if (at(0.1)) {
+          const n = this.has("flyKnife.triple") ? 3 : 1;
+          const fire = this.has("flyKnife.fire") ? "fire" : null;
+          for (let i = 0; i < n; i++) {
+            const a = (i - (n - 1) / 2) * 0.16;
+            const vx = f * 24 * Math.cos(a);
+            const vz = 24 * Math.sin(a) * 0.5;
+            const x = p.pos.x + f * 0.8;
+            const y = p.pos.y + 1.3;
+            this.dart(x, y, p.pos.z, vx, 0, vz, 0.9);
+            this.addHit({ follow: false, x, z: p.pos.z, vx, vz, hw: 0.4, hd: 0.3, y0: y - 0.6, y1: y + 0.6, dur: 0.9, dmg: 1.1 * atk * m("dmg"), kb: 4, up: 0, hitstop: 0.02, heavy: false, element: fire });
+          }
+          sfx.swing();
+        }
+        return GRAVITY * 0.25;
+      }
+      case "fanDarts": {
+        p.vel.x *= Math.max(0, 1 - dt * 10);
+        if (at(0.15)) {
+          const n = this.has("fanDarts.more") ? 11 : 7;
+          const spread = 0.7 * m("size");
+          const burn = this.has("fanDarts.poison") ? "fire" : null;
+          for (let i = 0; i < n; i++) {
+            const a = (i / (n - 1) - 0.5) * 2 * spread;
+            const vx = f * 22 * Math.cos(a);
+            const vz = 22 * Math.sin(a);
+            const x = p.pos.x + f * 0.8;
+            const y = p.pos.y + 1.4;
+            this.dart(x, y, p.pos.z, vx, 0, vz, 0.7);
+            this.addHit({ follow: false, x, z: p.pos.z, vx, vz, hw: 0.35, hd: 0.35, y0: y - 0.7, y1: y + 0.7, dur: 0.6, dmg: 0.9 * atk * m("dmg"), kb: 2, up: 0, hitstop: 0.01, heavy: false, element: burn, burnMul: 0.6 });
+          }
+          this.petal({ x: p.pos.x + f * 2, y: p.pos.y + 1.4, z: p.pos.z }, 20, 0xf4e6b0, 6, 0.6);
+        }
+        return GRAVITY;
+      }
+      case "shadowStep": {
+        p.vel.x = 0;
+        p.vel.z = 0;
+        if (at(0.22)) {
+          // 找最近的敌人，瞬移到它背后
+          let best: Enemy | null = null;
+          let bd = Infinity;
+          for (const e of this.enemies) {
+            if (e.dead) continue;
+            const d = Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z);
+            if (d < bd) {
+              bd = d;
+              best = e;
+            }
+          }
+          const old = p.pos.clone();
+          if (best) {
+            p.pos.x = clamp(best.pos.x - best.facing * 1.3, 0.6, this.roomW - 0.6);
+            p.pos.z = best.pos.z;
+            p.facing = sign(best.pos.x - p.pos.x) || p.facing;
+          } else {
+            p.pos.x = clamp(p.pos.x + f * 4, 0.6, this.roomW - 0.6);
+          }
+          this.petal({ x: old.x, y: 1.2, z: old.z }, 22, 0x7a6a8a, 4, 0.9);
+          this.petal({ x: p.pos.x, y: 1.2, z: p.pos.z }, 22, 0x9a8aa8, 4, 0.9);
+          this.ink(old.x, old.z, 1.4, 1.2);
+          this.addHit({ follow: true, ox: 0, shape: "circle", r: 1.8, y0: 0, y1: 2.4, dur: 0.08, dmg: 2.6 * atk * m("dmg"), kb: 6, up: 4, hitstop: 0.06, heavy: true, element: null, radial: true });
+          if (this.has("shadowStep.smoke")) this.ink(p.pos.x, p.pos.z, 2, 1.5);
+          sfx.swing(true);
+        }
+        return 0;
+      }
+      case "flyingFan": {
+        p.vel.x *= Math.max(0, 1 - dt * 6);
+        if (at(0.12)) {
+          const L = 9 * m("size");
+          const lanes = this.has("flyingFan.twin") ? [-0.9, 0.9] : [0];
+          for (const dz of lanes) {
+            const z = p.pos.z + dz;
+            const y = p.pos.y + 1.4;
+            this.addHit({ follow: false, x: p.pos.x + f * 0.8, z, vx: f * L / 0.5, vz: 0, hw: 0.7, hd: 0.5, y0: y - 0.8, y1: y + 0.8, dur: 0.5, dmg: 1.4 * atk * m("dmg"), kb: 4, up: 0, hitstop: 0.02, heavy: false, element: null });
+            this.addHit({ follow: false, x: p.pos.x + f * L, z, vx: -f * L / 0.5, vz: 0, hw: 0.7, hd: 0.5, y0: y - 0.8, y1: y + 0.8, dur: 0.5, dmg: 1.4 * atk * m("dmg"), kb: 4, up: 0, hitstop: 0.02, heavy: false, element: null, delay: 0.5 });
+            this.arcFx({ x: p.pos.x + f * 0.8, y, z }, 0.9, 0xfff4e0, 0.5, 26, 2.4);
+          }
+          sfx.swing();
+        }
+        if (act.t > 0.12 && Math.random() < dt * 30) this.petal({ x: p.pos.x + f * (act.t * 6), y: p.pos.y + 1.4, z: p.pos.z }, 3, 0xffb7c5, 2, 0.6);
+        return GRAVITY;
+      }
+      case "sleeveHook": {
+        p.vel.x = 0;
+        p.vel.z = 0;
+        if (at(0.15)) {
+          const reach = 7 * m("size");
+          const pull = this.has("sleeveHook.stun") ? 4 : 0;
+          for (const e of [...this.enemies]) {
+            if (e.dead || e.boss) continue;
+            const d = (e.pos.x - p.pos.x) * f;
+            if (d < 0.5 || d > reach || Math.abs(e.pos.z - p.pos.z) > 2.2) continue;
+            e.pos.x = p.pos.x + f * 1.4;
+            this.damageEnemy(e, { dmg: 1.0 * atk * m("dmg"), kb: 1, up: pull, hitstop: 0.02, element: null, heavy: false }, p.pos.x);
+          }
+          // 水袖：一道白色的长带从手里飞出去
+          for (let i = 0; i < 8; i++) {
+            this.fx.spawn({ geo: FXGEO.plane, color: 0xfff4e0, k: 1.6, pos: [p.pos.x + f * (1 + i * 0.6), p.pos.y + 1.6 + Math.sin(i) * 0.3, p.pos.z], rot: [0, f > 0 ? 0 : Math.PI, 0], scale: [1.2, 0.18, 1], scaleTo: [1.4, 0.1, 1], life: 0.6, delay: i * 0.02, vel: [f * 6, 0, 0] });
+          }
+          this.petal({ x: p.pos.x + f * 4, y: p.pos.y + 1.5, z: p.pos.z }, 16, 0xf4e6b0, 5, 0.8);
+          sfx.swing();
+        }
+        return GRAVITY;
+      }
+      case "inkStorm": {
+        p.vel.x = mv.x * 1.2;
+        p.vel.z = mv.y * 1.2;
+        const every = 0.25;
+        if (act.t >= act.n * every) {
+          act.n++;
+          const r = 3.2 * m("size");
+          this.aoe(p.pos.clone(), r, 0.6 * atk * m("dmg"), null);
+          this.arcFx({ x: p.pos.x, y: p.pos.y + 1.2, z: p.pos.z }, r, 0x0a0a12, 0.5, 14, 1, Math.random() * 6);
+          this.ink(p.pos.x + rand(-r * 0.6, r * 0.6), p.pos.z + rand(-1, 1), rand(0.6, 1.2), 1.6);
+          if (this.has("inkStorm.ink")) this.patches.push({ pos: new THREE.Vector3(p.pos.x, 0, p.pos.z), t: 0, tick: 0 });
+          this.petal({ x: p.pos.x, y: p.pos.y + 1.5, z: p.pos.z }, 14, 0xe8e0d0, 4, 1.2);
+        }
+        return GRAVITY;
+      }
+      case "fanWave": {
+        p.vel.x *= Math.max(0, 1 - dt * 8);
+        if (at(0.14)) {
+          const L = 4 * m("size");
+          this.addHit({ follow: true, ox: 2.4, hw: L / 2, hd: 1.4, y0: 0, y1: 2.6, dur: 0.1, dmg: 1.3 * atk * m("dmg"), kb: 8, up: 2, hitstop: 0.03, heavy: true, element: null });
+          this.arcFx({ x: p.pos.x + f * 2.4, y: p.pos.y + 1.3, z: p.pos.z }, 1.8 * m("size"), 0xf4f8ff, 0.3, 0, 2.2);
+          this.petal({ x: p.pos.x + f * 2.5, y: p.pos.y + 1.2, z: p.pos.z }, 12, 0xe8f0ff, 6, 0.6);
+          sfx.swing(true);
+        }
+        return GRAVITY;
+      }
+      default:
+        return GRAVITY;
+    }
+  }
+
+  private roleSkillPose(act: PAct, k: number): Pose {
+    switch (act.skill!) {
+      case "longOut":
+        return keyed(k, [
+          [0, pose({ shR: 2.6, elR: 0.6, wpn: 0.3, lean: -0.1 })],
+          [0.4, pose({ shR: 1.5, elR: 0, wpn: 0, lean: 0.5, hipR: 0.8, knR: -0.5, hipL: -0.7, knL: -0.2, rootY: -0.2, shL: 0.2 })],
+          [1, pose({ shR: 1.45, elR: 0, wpn: 0, lean: 0.45, hipR: 0.7, knR: -0.5, hipL: -0.6, rootY: -0.2, shL: 0.3 })],
+        ]);
+      case "backStab":
+        return keyed(k, [
+          [0, pose({ shR: 1.2, elR: 0.2, wpn: 0.1, lean: -0.3, hipR: -0.2, hipL: 0.5 })],
+          [0.35, pose({ shR: 1.5, elR: 0, wpn: 0, lean: 0.5, hipR: 0.8, knR: -0.5, hipL: -0.7, rootY: -0.2 })],
+          [1, pose({ shR: 1.4, elR: 0.1, lean: 0.35, rootY: -0.12 })],
+        ]);
+      case "sweep":
+        return pose({ spinY: Math.min(1, act.t * 4) * Math.PI * 2 * (act.t > 0.12 ? 1 : 0), shR: 1.6, elR: 0, wpn: 0, shL: 1.2, elL: 0.2, lean: 0.15, rootY: -0.1 }, STANCE);
+      case "plumBlossom":
+        return keyed(k, [
+          [0, pose({ shR: 2.5, elR: 0.6, wpn: 0.2 })],
+          [0.5, pose({ shR: 1.5, elR: 0, lean: 0.45, hipR: 0.7, knR: -0.4, hipL: -0.5 })],
+          [1, pose({ shR: 2.0, elR: 0.3, lean: 0.1 })],
+        ]);
+      case "powerPunch":
+        return keyed(k, [
+          [0, pose({ shR: 2.9, elR: 2.2, wpn: 0, lean: -0.25, rootY: -0.2, hipL: 0.2, knL: -0.6 })],
+          [0.55, pose({ shR: 0.2, elR: 0.05, lean: 0.6, rootY: -0.25, hipR: 0.9, knR: -0.6, hipL: -0.6, knL: -0.3, shL: -0.5, elL: 1.5 })],
+          [1, pose({ shR: 0.3, elR: 0.1, lean: 0.45, rootY: -0.2, hipR: 0.7, knR: -0.5, hipL: -0.5 })],
+        ]);
+      case "quake":
+        return keyed(k, [
+          [0, pose({ shR: 2.8, elR: 0.1, shL: 2.8, elL: 0.1, lean: -0.3 })],
+          [0.4, pose({ shR: 0.5, elR: 0.1, shL: 0.5, elL: 0.1, lean: 0.8, rootY: -0.45, hipR: 1.0, knR: -0.9, hipL: -0.5 })],
+          [1, pose({ rootY: -0.2, shR: 0.5, shL: 0.5, lean: 0.3 })],
+        ]);
+      case "whirl":
+        return pose({ spinY: act.t * 14, hipR: 1.3, knR: -0.4, hipL: -0.4, knL: -0.2, shR: 1.4, shL: 1.4, elL: 0.8, elR: 0.8, lean: 0.1 });
+      case "bell":
+        return pose({ shL: 1.0, elL: 2.2, shR: 1.0, elR: 2.2, lean: 0.05, rootY: -0.05 });
+      case "flyKnife":
+        return keyed(k, [
+          [0, pose({ shR: 2.4, elR: 0.4, wpn: 0.2, lean: -0.2 })],
+          [0.5, pose({ shR: 0.4, elR: 0.1, lean: 0.35, wpn: 0.2 })],
+          [1, pose({ shR: 0.8, elR: 0.2, lean: 0.25 })],
+        ]);
+      case "fanDarts":
+        return keyed(k, [
+          [0, pose({ shL: 2.6, elL: 0.3, shR: 2.6, elR: 0.3, lean: -0.1 })],
+          [0.5, pose({ shL: 0.5, elL: 0.2, shR: 0.4, elR: 0.2, lean: 0.25 })],
+          [1, pose({ shL: 0.7, shR: 0.7, lean: 0.2 })],
+        ]);
+      case "shadowStep":
+        return keyed(k, [
+          [0, DODGE],
+          [0.4, pose({ lean: -0.3, rootY: -0.2, hipL: -0.5, knL: -0.9, hipR: 0.8, knR: -0.7, shL: 1.5, shR: 1.5 })],
+          [1, STANCE],
+        ]);
+      case "caltrops":
+        return keyed(k, [
+          [0, P.crouch],
+          [0.7, pose({ rootY: -0.5, lean: 0.6, hipR: 1.2, knR: -1.2, shR: 1.3, elR: 1.4 }, P.crouch)],
+          [1, STANCE],
+        ]);
+      case "flyingFan":
+        return keyed(k, [
+          [0, pose({ shR: 2.7, elR: 0.2, wpn: 0.2 })],
+          [0.35, pose({ shR: 1.2, elR: 0.1, lean: 0.4, wpn: 0.2 })],
+          [1, pose({ shR: 1.0, elR: 0.3, lean: 0.2 })],
+        ]);
+      case "sleeveHook":
+        return keyed(k, [
+          [0, pose({ shR: 2.8, elR: 0.1, wpn: 0.2 })],
+          [0.4, pose({ shR: 0.9, elR: 0.3, lean: 0.35, wpn: 0.2 })],
+          [1, pose({ shR: 1.1, elR: 0.6, lean: 0.2 })],
+        ]);
+      case "inkStorm":
+        return pose({ spinY: act.t * 6, shR: 1.6, elR: 0.1, shL: 1.6, elL: 0.1, lean: 0.1, wpn: 0.1 });
+      case "fanWave":
+        return keyed(k, [
+          [0, pose({ shR: 2.9, elR: 0.1, wpn: 0.1, lean: -0.2 })],
+          [0.4, pose({ shR: 0.5, elR: 0.1, wpn: 0.1, lean: 0.4, hipR: 0.6, knR: -0.4, hipL: -0.5 })],
+          [1, pose({ shR: 0.8, elR: 0.2, lean: 0.25 })],
+        ]);
+      default:
+        return STANCE;
+    }
+  }
+
+  private awakenPose(): Pose {
+    switch (this.role) {
+      case "spear":
+        return pose({ shR: 3.14, elR: 0.05, wpn: 0.1, lean: -0.1, shL: 0.8 });
+      case "fist":
+        return pose({ shR: 0.8, elR: 1.6, shL: 0.5, elL: 1.5, lean: 0.25, rootY: -0.2 });
+      case "dart":
+        return pose({ shR: 3.0, elR: 0.6, shL: 2.8, elL: 0.4, lean: -0.1 });
+      case "fan":
+        return pose({ shR: 2.2, elR: 0, wpn: 0.2, shL: 2.0, elL: 0.1, lean: -0.1 });
+      default:
+        return AWAKEN;
+    }
+  }
+
+  private roleScript(anchor: THREE.Vector3, f: number, plan: AwakenPlan, onEnd: () => void): void {
+    this.runScriptNow({
+      t: 0,
+      end: plan.end,
+      events: plan.events.map((e) => ({ at: e.at, fn: e.fn, done: false })),
+      onEnd: () => {
+        this.hooks.onTint(null);
+        onEnd();
+      },
+    });
+    this.director.play(anchor, f, plan.shots);
+  }
+
+  private startRoleAwaken(): void {
+    const p = this.player;
+    const f = p.facing;
+    const anchor = p.pos.clone();
+    const hemi0 = this.hemi.intensity;
+    this.startAct("awaken", 99, 99);
+    p.invuln = 99;
+    this.hits = this.hits.filter((h) => !h.follow);
+    sfx.awaken();
+    vibrate(60);
+    const cfg = ROLES[this.role];
+    this.hooks.onTint(cfg.tint);
+    this.hooks.onBanner({ kind: "clear", text: cfg.awaken.name });
+    const plan =
+      this.role === "spear" ? this.planSpear(anchor, f) : this.role === "fist" ? this.planFist(anchor, f) : this.role === "dart" ? this.planDart(anchor, f) : this.planFan(anchor, f);
+    this.roleScript(anchor, f, plan, () => {
+      if (this.player.act?.kind === "awaken") this.player.act = null;
+      this.player.invuln = 0.8;
+      this.hemi.intensity = hemi0;
+    });
+  }
+
+  /** 龙啸九天：青龙从身后游到前方，咬中路上的敌人，最后枪尖刺穿画面 */
+  private planSpear(anchor: THREE.Vector3, f: number): AwakenPlan {
+    const p = this.player;
+    const color = 0x7affd8;
+    const inLine = (e: Enemy, reach: number) => {
+      const d = (e.pos.x - p.pos.x) * f;
+      return !e.dead && !e.boss && d > -3 && d < reach && Math.abs(e.pos.z - p.pos.z) < 5;
+    };
+    return {
+      end: 3.6,
+      shots: [
+        { dur: 0.5, pos: [-1.2, 0.9, 3.2], look: [1, 1.2, 0], fov: 36 },
+        { dur: 0.9, pos: [-6, 4, 9], toPos: [-3, 3, 11], look: [2, 2.4, 0], fov: 44 },
+        { dur: 1.2, pos: [6, 5.5, 13], toPos: [11, 4, 12], look: [6, 2.6, 0], fov: 48 },
+        { dur: 1.0, pos: [1.5, 1.4, 4.6], toPos: [0.8, 1.3, 3.4], look: [4, 1.2, 0], fov: 34 },
+      ],
+      events: [
+        {
+          at: 0.3,
+          fn: () => {
+            this.sparks.emit(this.tmp.set(p.pos.x + f, 1.4, p.pos.z), 80, color, { speed: 10, life: 0.7 });
+            this.petal({ x: p.pos.x + f, y: 1.4, z: p.pos.z }, 30, color, 6, 1.2);
+            this.arcFx({ x: p.pos.x + f * 0.8, y: 1.4, z: p.pos.z }, 2.4, color, 0.6, 0, 2.8);
+          },
+        },
+        {
+          at: 0.6,
+          fn: () => {
+            // 青龙从身后游出，穿过整个画面
+            this.dragon(new THREE.Vector3(p.pos.x - 6 * f, 3.4, 0.4), f, color, 2.6, 16, 22);
+          },
+        },
+        {
+          at: 1.2,
+          fn: () => {
+            for (const e of [...this.enemies]) {
+              if (!inLine(e, 18)) continue;
+              this.damageEnemy(e, { dmg: 3.5 * this.atk(), kb: 6, up: 8, hitstop: 0.05, element: null, heavy: true, radial: true, color }, p.pos.x);
+              this.petal({ x: e.pos.x, y: e.pos.y + 1.2, z: e.pos.z }, 16, color, 6, 0.9);
+            }
+            this.director.shake(0.3);
+            sfx.slashHit(true);
+          },
+        },
+        {
+          at: 2.4,
+          fn: () => {
+            const x = p.pos.x + f * 4;
+            this.explosion(x, p.pos.z, 3, color);
+            this.line(this.tmp.set(x - f * 6, 1.3, p.pos.z).clone(), new THREE.Vector3(f, 0, 0), 12, 0.12, 0xdffcff, 0.5);
+            this.aoe(this.tmp.set(x, 0, p.pos.z).clone(), 3, 6 * this.atk(), null);
+            this.director.shake(1);
+            this.hooks.onFlash("white");
+            sfx.explode();
+            vibrate(120);
+          },
+        },
+      ],
+    };
+  }
+
+  /** 罗汉伏魔：金身佛影浮现，金拳落下，震倒周围所有敌人 */
+  private planFist(anchor: THREE.Vector3, f: number): AwakenPlan {
+    const p = this.player;
+    const gold = 0xffc83a;
+    const landX = p.pos.x + f * 2.5;
+    return {
+      end: 3.6,
+      shots: [
+        { dur: 0.6, pos: [0.5, 1.8, 3.4], look: [0, 1.8, 0], fov: 40 },
+        { dur: 0.9, pos: [-4, 0.8, 7], toPos: [-6, 0.9, 8], look: [2, 1.5, 0], fov: 34 },
+        { dur: 1.2, pos: [2.5, 8, 6], toPos: [2.5, 5, 6], look: [2, 0, 0], fov: 42 },
+        { dur: 0.9, pos: [4, 1.2, 6], toPos: [3, 1.2, 6], look: [0, 1.6, 0], fov: 30 },
+      ],
+      events: [
+        {
+          at: 0.2,
+          fn: () => {
+            this.fx.spawn({ geo: FXGEO.ring, color: gold, k: 0.9, pos: [p.pos.x - f * 1.2, 4.6, -6], scale: 2.2, scaleTo: 2.5, life: 3.4, opacity: 0.4, opacityTo: 0 });
+            this.fx.spawn({ geo: FXGEO.sphere, color: gold, k: 0.9, additive: false, pos: [p.pos.x - f * 3, 7.5, -7], scale: 0.9, life: 3.4, opacity: 0.35, opacityTo: 0.1 });
+            this.fx.spawn({ geo: FXGEO.sphere, color: gold, k: 0.9, additive: false, pos: [p.pos.x - f * 3, 4.6, -7], scale: [1.8, 2.6, 1], life: 3.4, opacity: 0.25, opacityTo: 0.08 });
+          },
+        },
+        { at: 0.3, fn: () => this.sparks.emit(this.tmp.set(p.pos.x, 1.4, p.pos.z), 60, gold, { speed: 6, life: 0.6, up: 3 }) },
+        {
+          at: 0.6,
+          fn: () => {
+            // 金拳从高处落下，身后留下残影
+            for (let i = 0; i < 4; i++) {
+              this.fx.spawn({ geo: FXGEO.sphere, color: gold, k: 2.0, pos: [landX, 6.5 + i * 0.6, -1.5], scale: 0.55 - i * 0.05, life: 0.9, opacity: 0.8 - i * 0.2, opacityTo: 0, vel: [0, -6, 0], delay: i * 0.05 });
+            }
+          },
+        },
+        {
+          at: 1.5,
+          fn: () => {
+            this.groundRing(landX, p.pos.z, 3.2, gold, 0.6);
+            this.groundRing(landX, p.pos.z, 1.8, 0xffffff, 0.4);
+            this.aoe(this.tmp.set(landX, 0, p.pos.z).clone(), 4.5, 4 * this.atk(), null);
+            for (const e of [...this.enemies]) {
+              if (e.dead || e.boss) continue;
+              this.launch(e, sign(e.pos.x - landX) * 3 + f * 0.5, 7);
+            }
+            this.sparks.emit(this.tmp.set(landX, 0.4, p.pos.z), 140, gold, { speed: 12, life: 0.9, up: 4, gravity: 10 });
+            this.dust(landX, p.pos.z, 30);
+            this.director.shake(1.2);
+            sfx.blast();
+            vibrate(150);
+          },
+        },
+        { at: 2.6, fn: () => this.petal({ x: p.pos.x, y: 1.2, z: p.pos.z }, 80, 0xffd27a, 8, 1.4) },
+      ],
+    };
+  }
+
+  /** 千机暗雨：满屏暗器从天而降，每一枚落地都会伤到附近的敌人 */
+  private planDart(anchor: THREE.Vector3, f: number): AwakenPlan {
+    const p = this.player;
+    const events: AwakenPlan["events"] = [];
+    for (let k = 0; k < 46; k++) {
+      const t = 0.5 + k * 0.05;
+      const x = p.pos.x + rand(-9, 12);
+      const z = rand(-2.6, 2.6);
+      events.push({ at: t, fn: () => this.dart(x, 14, z, 0, -24, 0, 0.55) });
+      events.push({
+        at: t + 0.55,
+        fn: () => {
+          for (const e of [...this.enemies]) {
+            if (e.dead || e.boss || Math.hypot(e.pos.x - x, e.pos.z - z) > 1.2) continue;
+            this.damageEnemy(e, { dmg: 1.2 * this.atk(), kb: 2, up: 0, hitstop: 0, element: null, heavy: false, color: 0xe8f0ff }, x);
+          }
+          this.sparks.emit(this.tmp.set(x, 0.2, z), 6, 0xe8f0ff, { speed: 3, life: 0.3 });
+          if (k % 6 === 0) {
+            this.fx.spawn({ geo: FXGEO.disk, color: 0x9adf6a, k: 1, additive: false, pos: [x, 0.05, z], rot: [-Math.PI / 2, 0, 0], scale: 1.6, life: 2.2, opacity: 0.35, opacityTo: 0 });
+          }
+        },
+      });
+    }
+    events.push({
+      at: 3.0,
+      fn: () => {
+        this.groundRing(p.pos.x, p.pos.z, 4, 0xe8f0ff, 0.5);
+        this.aoe(this.tmp.set(p.pos.x, 0, p.pos.z).clone(), 3, 2 * this.atk(), null);
+        this.hooks.onFlash("white");
+        sfx.zap();
+      },
+    });
+    return {
+      end: 3.6,
+      shots: [
+        { dur: 0.8, pos: [-2, 6, 6], toPos: [-2, 8, 6], look: [2, 0, 0], fov: 46 },
+        { dur: 1.0, pos: [0.5, 10, 3], toPos: [4, 11, 5], look: [3, 0, 0], fov: 50 },
+        { dur: 1.0, pos: [4, 1.2, 10], toPos: [2, 1.6, 10], look: [4, 1.2, 0], fov: 36 },
+        { dur: 0.8, pos: [-5, 2, 6], toPos: [-3, 2.5, 6], look: [1, 1, 0], fov: 38 },
+      ],
+      events,
+    };
+  }
+
+  /** 满月风华：扇子展开成一轮满月，花瓣满天，月光照到的敌人被定住 */
+  private planFan(anchor: THREE.Vector3, f: number): AwakenPlan {
+    const p = this.player;
+    const color = 0xfff4e0;
+    const events: AwakenPlan["events"] = [];
+    for (let i = 0; i < 7; i++) {
+      events.push({
+        at: 0.2 + i * 0.08,
+        fn: () => {
+          const a = (i / 7) * Math.PI * 2;
+          this.fx.spawn({ geo: FXGEO.arc, color, k: 0.9, pos: [p.pos.x + Math.cos(a) * 1.8, p.pos.y + 1.6 + Math.sin(a) * 1.2, p.pos.z - 2.5], rot: [0, 0, a], scale: 1.2, life: 2.6, opacity: 0.5, opacityTo: 0.1, spin: [0, 0, 3], additive: false });
+        },
+      });
+    }
+    events.push({
+      at: 0.7,
+      fn: () => {
+        this.fx.spawn({ geo: FXGEO.disk, color: 0xf4f8ff, k: 0.9, pos: [p.pos.x + f * 5, 6.2, -6], scale: 2.2, life: 3.6, opacity: 0.8, opacityTo: 0.4 });
+        this.fx.spawn({ geo: FXGEO.ring, color: 0xf4f8ff, k: 1.2, pos: [p.pos.x + f * 5, 6.2, -5.9], scale: 4, scaleTo: 4.6, life: 3.6, opacity: 0.6, opacityTo: 0 });
+      },
+    });
+    for (let t = 0.8; t < 3.2; t += 0.25) {
+      events.push({ at: t, fn: () => this.petal({ x: p.pos.x + rand(-4, 4), y: rand(1, 4), z: rand(-2, 2) }, 14, 0xffc8d8, 3, 1.4) });
+    }
+    events.push({
+      at: 1.6,
+      fn: () => {
+        for (const e of [...this.enemies]) {
+          if (e.dead || e.boss || Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z) > 10) continue;
+          this.damageEnemy(e, { dmg: 1.5 * this.atk(), kb: 0, up: 0, hitstop: 0, element: null, heavy: false, color }, p.pos.x);
+          this.freezeEnemy(e, 2);
+          this.sparks.emit(this.tmp.set(e.pos.x, e.pos.y + 1, e.pos.z), 14, 0xcff4ff, { speed: 4, life: 0.5 });
+        }
+        sfx.freeze();
+      },
+    });
+    events.push({
+      at: 2.7,
+      fn: () => {
+        this.aoe(this.tmp.set(p.pos.x + f * 3, 0, p.pos.z).clone(), 6, 2 * this.atk(), null);
+        this.groundRing(p.pos.x, p.pos.z, 3.5, color, 0.6);
+        this.director.shake(0.6);
+        sfx.blast();
+      },
+    });
+    return {
+      end: 3.6,
+      shots: [
+        { dur: 0.9, pos: [-2.5, 1.6, 3], toPos: [-1.8, 1.8, 2.6], look: [1.4, 1.5, 0], fov: 40 },
+        { dur: 1.0, pos: [-5, 2.6, 10], toPos: [-4, 4.2, 12], look: [2, 3.6, -4], fov: 44 },
+        { dur: 0.9, pos: [6, 6, 8], toPos: [3, 3.4, 9], look: [2, 4, -4], fov: 42 },
+        { dur: 0.8, pos: [0, 1.2, 4], toPos: [-2, 1.1, 4], look: [1, 1.2, 0], fov: 40 },
+      ],
+      events,
+    };
   }
 
   /** 当前持有的技能和强化（暂停菜单里的技能说明用） */
