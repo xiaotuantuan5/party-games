@@ -83,7 +83,7 @@ io.on("connection", (socket: AppSocket) => {
       const token = validateToken(p?.token);
       const name = validateName(p?.name);
       const avatar = validateAvatar(p?.avatar);
-      const code = typeof p?.code === "string" ? p.code.trim().toUpperCase() : "";
+      const code = typeof p?.code === "string" ? p.code.trim() : "";
       if (socket.data.roomCode && socket.data.roomCode !== code) leaveCurrent(socket);
       const playerId = playerIdFromToken(token);
       const { room, replacedSocketId } = rooms.join(code, playerId, name, avatar, socket.id);

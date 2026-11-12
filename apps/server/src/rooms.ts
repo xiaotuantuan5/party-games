@@ -40,7 +40,6 @@ interface Room {
 
 /** 房间所有人都断线后保留多久（便于刷新页面、切后台后重连） */
 const EMPTY_ROOM_TTL_MS = 10 * 60 * 1000;
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // 去掉了易混淆的 I、O
 
 /**
  * 客户端在 localStorage 里保存一个随机 token 作为身份凭证。
@@ -88,7 +87,7 @@ export class RoomManager {
   constructor(private onChange: (room: Room) => void) {}
 
   get(code: string): Room | undefined {
-    return this.rooms.get(code.toUpperCase());
+    return this.rooms.get(code.trim());
   }
 
   create(playerId: string, name: string, avatar: Avatar | null, socketId: string, gameId?: unknown): Room {
@@ -306,8 +305,8 @@ export class RoomManager {
 
   private newCode(): string {
     for (;;) {
-      let code = "";
-      for (let i = 0; i < 4; i++) code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+      // 4 位数字，首位不为 0，避免口头报号时把开头的 0 漏掉
+      const code = String(1000 + Math.floor(Math.random() * 9000));
       if (!this.rooms.has(code)) return code;
     }
   }

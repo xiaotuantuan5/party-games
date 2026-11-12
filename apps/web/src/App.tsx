@@ -144,7 +144,7 @@ type HomeTab = "multi" | "solo";
 const TAB_KEY = "party.homeTab";
 
 function Home({ actions, onSolo }: { actions: PartyActions; onSolo: (id: SoloGameId) => void }) {
-  const invited = (new URLSearchParams(location.search).get("room") ?? "").toUpperCase();
+  const invited = (new URLSearchParams(location.search).get("room") ?? "").replace(/\D/g, "").slice(0, 4);
   // 被邀请时一定停在多人页；否则记住上次看的是哪一页
   const [tab, setTabState] = useState<HomeTab>(() =>
     !invited && localStorage.getItem(TAB_KEY) === "solo" ? "solo" : "multi",
@@ -226,9 +226,12 @@ function Home({ actions, onSolo }: { actions: PartyActions; onSolo: (id: SoloGam
                 <input
                   value={code}
                   maxLength={4}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="off"
                   placeholder="房间号"
                   aria-label="房间号"
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                   onKeyDown={(e) => e.key === "Enter" && code.length === 4 && join()}
                 />
                 <button type="button" disabled={code.length !== 4} onClick={join}>
