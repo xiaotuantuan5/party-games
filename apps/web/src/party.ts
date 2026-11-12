@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import type { ClientToServerEvents, GameAction, GameId, JoinResult, RoomView, ServerToClientEvents } from "@party/shared";
+import type {
+  ClientToServerEvents,
+  GameAction,
+  GameId,
+  JoinResult,
+  QuestMove,
+  RoomView,
+  ServerToClientEvents,
+} from "@party/shared";
 
 type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -17,6 +25,19 @@ function getToken(): string {
     localStorage.setItem(TOKEN_KEY, t);
   }
   return t;
+}
+
+/** 实时游戏：上报自己的位置。volatile：网络忙时直接丢掉，反正下一包马上就来 */
+export function sendMove(move: QuestMove): void {
+  if (socket.connected) socket.volatile.emit("game:move", move);
+}
+
+/** 实时游戏：订阅其他玩家的位置，返回取消订阅的函数 */
+export function onMove(cb: (playerId: string, move: QuestMove) => void): () => void {
+  socket.on("game:move", cb);
+  return () => {
+    socket.off("game:move", cb);
+  };
 }
 
 export function savedName(): string {

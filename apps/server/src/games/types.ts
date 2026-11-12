@@ -1,4 +1,4 @@
-import type { GameAction, GameMeta, GameView, PlayerInfo } from "@party/shared";
+import type { GameAction, GameMeta, GameView, PlayerInfo, QuestMove } from "@party/shared";
 
 /** 游戏规则抛出的、可直接展示给玩家的错误 */
 export class GameError extends Error {}
@@ -16,6 +16,11 @@ export interface GameEngine<S, A extends GameAction = GameAction, V extends Game
   viewFor(state: S, playerId: string): V;
   /** 玩家中途退出房间时调用。返回 false 表示游戏无法继续，房间回到大厅。 */
   removePlayer(state: S, playerId: string): boolean;
+  /**
+   * 可选：实时游戏的高频位置上报。返回 null 表示丢弃；
+   * relay 是校验过的数据，转发给其他人；changed 表示离散状态变了，需要给所有人推送一次完整视图。
+   */
+  move?(state: S, playerId: string, data: unknown): { relay: QuestMove; changed: boolean } | null;
 }
 
 // 房间层不关心具体游戏的状态类型

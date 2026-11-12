@@ -289,6 +289,58 @@ button.link.danger {
   opacity: 0.9;
 }
 
+/* 多人 / 单人分页。吸顶，列表长了也能随时切换 */
+.home-tabs {
+  position: sticky;
+  top: 8px;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.home-tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #fff;
+  background: transparent;
+  border-radius: 10px;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.home-tabs button.active {
+  color: #7f5af0;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.home-tab-count {
+  min-width: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.home-tabs button.active .home-tab-count {
+  color: #fff;
+  background: #7f5af0;
+}
+
 .panel {
   display: flex;
   align-items: center;

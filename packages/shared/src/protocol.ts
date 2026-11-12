@@ -1,4 +1,4 @@
-import type { GameId, GameView, GameAction } from "./games/index.js";
+import type { GameId, GameView, GameAction, QuestMove } from "./games/index.js";
 
 export const MAX_PLAYERS_PER_ROOM = 12;
 export const MAX_NAME_LENGTH = 12;
@@ -41,9 +41,13 @@ export interface ClientToServerEvents {
   "game:backToLobby": (ack: Ack) => void;
   /** 房主一键再来一局（同一个游戏，同一批人） */
   "game:restart": (ack: Ack) => void;
+  /** 实时游戏的位置上报，高频、不需要回执，丢了也没关系 */
+  "game:move": (move: QuestMove) => void;
 }
 
 export interface ServerToClientEvents {
   "room:state": (room: RoomView) => void;
   "room:closed": (reason: string) => void;
+  /** 转发其他玩家的实时位置 */
+  "game:move": (playerId: string, move: QuestMove) => void;
 }
