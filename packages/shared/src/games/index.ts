@@ -1,6 +1,7 @@
 import type { AvalonAction, AvalonView } from "./avalon.js";
 import type { BombCatAction, BombCatView } from "./bombCat.js";
 import type { CatapultAction, CatapultView } from "./catapult.js";
+import type { HoldemAction, HoldemView } from "./holdem.js";
 import type { IcecoolAction, IcecoolView } from "./icecool.js";
 import type { JengaAction, JengaView } from "./jenga.js";
 import type { MidwayAction, MidwayView } from "./midway.js";
@@ -15,6 +16,7 @@ import type { WerewolfAction, WerewolfView } from "./werewolf.js";
 export * from "./avalon.js";
 export * from "./bombCat.js";
 export * from "./catapult.js";
+export * from "./holdem.js";
 export * from "./icecool.js";
 export * from "./jenga.js";
 export * from "./liarsBar.js";
@@ -26,7 +28,7 @@ export * from "./undercover.js";
 export * from "./uno.js";
 export * from "./werewolf.js";
 
-export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf" | "avalon" | "quest" | "midway" | "moyu" | "icecool" | "catapult";
+export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf" | "avalon" | "quest" | "midway" | "moyu" | "icecool" | "catapult" | "holdem";
 
 export interface GameMeta {
   id: GameId;
@@ -48,6 +50,29 @@ export interface GameMeta {
 }
 
 export const GAMES: Record<GameId, GameMeta> = {
+  holdem: {
+    id: "holdem",
+    name: "德州扑克",
+    emoji: "♠",
+    tagline: "两张底牌五张公牌，敢不敢全下",
+    description:
+      "无限注德州扑克。每人 1000 筹码，两张底牌配合五张公共牌凑最大的 5 张，靠牌力或者诈唬赢下底池。盲注会定时上涨，最后赢走所有筹码的人获胜。",
+    minPlayers: 2,
+    maxPlayers: 10,
+    duration: "20~40 分钟",
+    tags: ["扑克", "诈唬", "经典"],
+    rules: [
+      "每人 1000 筹码。庄家按钮每手往左移一位，庄家左边两位分别下小盲和大盲（两个人玩时庄家是小盲）。盲注从 10/20 开始，每 5 手升一级。",
+      "每人发两张只有自己能看到的底牌。之后依次发 3 张翻牌、1 张转牌、1 张河牌，都是公共牌，每发一次就下注一轮。",
+      "轮到你时可以：弃牌（放弃这一手）、过牌（没人下注时）、跟注（补到和最高注一样）、加注（至少加一个大盲或上一次加注的幅度）、全下（推上所有筹码）。",
+      "每次行动有 40 秒，超时自动过牌，不能过牌就自动弃牌。",
+      "只剩一个人没弃牌，他直接赢下底池；否则河牌下注结束后摊牌，用底牌和公共牌里最大的 5 张比大小。",
+      "牌型从大到小：同花顺 > 四条 > 葫芦 > 同花 > 顺子 > 三条 > 两对 > 一对 > 高牌。A 可以当 1 组成 A-2-3-4-5 顺子。花色不分大小，一样大就平分底池。",
+      "筹码不够跟注时可以全下，只能赢到自己投入那部分对应的底池（边池），多出来的由其他人另外比。",
+      "筹码输光就出局，最后赢走所有筹码的人获胜。",
+    ],
+    color: "#0b6e4f",
+  },
   moyu: {
     id: "moyu",
     name: "工位摸鱼",
@@ -320,9 +345,9 @@ export const GAMES: Record<GameId, GameMeta> = {
 };
 
 /** 首页展示顺序 */
-export const GAME_ORDER: GameId[] = ["icecool", "catapult", "moyu", "midway", "avalon", "quest", "werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
+export const GAME_ORDER: GameId[] = ["holdem", "icecool", "catapult", "moyu", "midway", "avalon", "quest", "werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
 
-export type GameView = AvalonView | NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView | QuestView | MidwayView | MoyuView | IcecoolView | CatapultView;
+export type GameView = AvalonView | NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView | QuestView | MidwayView | MoyuView | IcecoolView | CatapultView | HoldemView;
 export type GameAction =
   | AvalonAction
   | NumberBombAction
@@ -336,4 +361,5 @@ export type GameAction =
   | MidwayAction
   | MoyuAction
   | IcecoolAction
-  | CatapultAction;
+  | CatapultAction
+  | HoldemAction;

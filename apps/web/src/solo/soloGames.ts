@@ -1,6 +1,6 @@
 /** 单人游戏：纯前端运行，不需要开房间，最高分存在本机 */
 
-export type SoloGameId = "spaceShooter" | "stickman";
+export type SoloGameId = "spaceShooter" | "stickman" | "tarot";
 
 export interface SoloGameMeta {
   id: SoloGameId;
@@ -28,9 +28,17 @@ export const SOLO_GAMES: Record<SoloGameId, SoloGameMeta> = {
     tags: ["3D", "动作", "横屏"],
     color: "#ffb03a",
   },
+  tarot: {
+    id: "tarot",
+    name: "塔罗占卜",
+    emoji: "🔮",
+    tagline: "78 张韦特塔罗，抽牌问问今天的运势",
+    tags: ["占卜", "治愈", "单人"],
+    color: "#a06eff",
+  },
 };
 
-export const SOLO_ORDER: SoloGameId[] = ["stickman", "spaceShooter"];
+export const SOLO_ORDER: SoloGameId[] = ["tarot", "stickman", "spaceShooter"];
 
 const bestKey = (id: SoloGameId) => `party.solo.${id}.best`;
 

@@ -2,6 +2,7 @@ import type { GameId } from "@party/shared";
 import { avalon } from "./avalon.js";
 import { bombCat } from "./bombCat.js";
 import { catapult } from "./catapult.js";
+import { holdem } from "./holdem.js";
 import { icecool } from "./icecool.js";
 import { jenga } from "./jenga.js";
 import { liarsBar } from "./liarsBar.js";
@@ -29,4 +30,5 @@ export const ENGINES: Record<GameId, AnyGameEngine> = {
   quest,
   icecool,
   catapult,
+  holdem,
 };

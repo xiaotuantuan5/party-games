@@ -1,0 +1,680 @@
+.tr-root {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: #efe6ff;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(160, 110, 255, 0.45), transparent 60%),
+    radial-gradient(ellipse at 100% 100%, rgba(255, 120, 200, 0.18), transparent 50%),
+    #120a26;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tr-stars {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, #fff, transparent),
+    radial-gradient(1px 1px at 70% 15%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 40% 70%, #ffe9a8, transparent),
+    radial-gradient(1px 1px at 85% 60%, #fff, transparent),
+    radial-gradient(1px 1px at 10% 85%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 55% 45%, #d9c4ff, transparent),
+    radial-gradient(1px 1px at 92% 88%, #fff, transparent);
+  animation: tr-twinkle 4s ease-in-out infinite alternate;
+}
+
+@keyframes tr-twinkle {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tr-wrap {
+  position: relative;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 12px 16px 40px;
+}
+
+.tr-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tr-link {
+  padding: 6px 4px;
+  font-size: 14px;
+  color: #cdb8ff;
+  background: none;
+}
+
+.tr-link.small {
+  font-size: 12px;
+}
+
+.tr-link.center-block {
+  display: block;
+  margin: 0 auto;
+}
+
+.tr-title {
+  margin-top: 8px;
+  font-size: 30px;
+  text-align: center;
+  letter-spacing: 4px;
+  text-shadow: 0 0 18px rgba(200, 160, 255, 0.8);
+}
+
+.tr-sub {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #b9a6e0;
+  text-align: center;
+}
+
+.tr-h {
+  margin: 18px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e3d6ff;
+}
+
+.tr-h.center,
+.center {
+  text-align: center;
+}
+
+/* ---------- 选主题和牌阵 ---------- */
+.tr-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.tr-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  font-size: 13px;
+  color: #e3d6ff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(200, 170, 255, 0.25);
+  border-radius: 12px;
+}
+
+.tr-option-emoji {
+  font-size: 22px;
+}
+
+.tr-option.on,
+.tr-spread.on {
+  color: #fff;
+  background: rgba(160, 110, 255, 0.35);
+  border-color: #c9a6ff;
+  box-shadow: 0 0 14px rgba(170, 120, 255, 0.45);
+}
+
+.tr-spreads {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tr-spread {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 14px;
+  text-align: left;
+  color: #e3d6ff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(200, 170, 255, 0.25);
+  border-radius: 12px;
+}
+
+.tr-spread-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.tr-spread-n {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: normal;
+  color: #ffd98a;
+}
+
+.tr-spread-desc {
+  font-size: 12px;
+  color: #b9a6e0;
+}
+
+.tr-question {
+  width: 100%;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(200, 170, 255, 0.35);
+}
+
+.tr-question::placeholder {
+  color: #8f7fb5;
+}
+
+.tr-btn {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+  padding: 14px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  border-radius: 999px;
+  color: #2a1550;
+  background: linear-gradient(90deg, #ffd98a, #f7a8ff);
+  box-shadow: 0 0 20px rgba(247, 168, 255, 0.45);
+}
+
+.tr-btn:active {
+  transform: scale(0.98);
+}
+
+.tr-btn.ghost {
+  margin-top: 10px;
+  padding: 10px;
+  font-size: 15px;
+  font-weight: normal;
+  color: #e3d6ff;
+  background: transparent;
+  border: 1px solid rgba(200, 170, 255, 0.4);
+  box-shadow: none;
+}
+
+.tr-disclaimer {
+  margin-top: 20px;
+  font-size: 12px;
+  color: #8f7fb5;
+  text-align: center;
+}
+
+/* ---------- 历史记录 ---------- */
+.tr-history {
+  margin-top: 10px;
+}
+
+.tr-history-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.tr-history ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tr-history li button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  color: #e3d6ff;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.tr-history-time {
+  font-size: 11px;
+  color: #8f7fb5;
+}
+
+.tr-history-q {
+  font-size: 14px;
+}
+
+.tr-history-cards {
+  overflow: hidden;
+  font-size: 12px;
+  color: #ffd98a;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---------- 牌背和牌面 ---------- */
+.tr-back {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  border: 2px solid #d9b46a;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 22%, rgba(217, 180, 106, 0.9) 23% 25%, transparent 26%),
+    radial-gradient(circle at 50% 50%, #ffd98a 0 6%, transparent 7%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0 4px, transparent 4px 8px),
+    linear-gradient(160deg, #3b1f78, #1d0f45);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.tr-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 2px solid #d9b46a;
+  background: linear-gradient(170deg, #fff7e6, #f1dfb8);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+
+.tr-face.minor {
+  background: linear-gradient(170deg, #fffaf0, color-mix(in srgb, var(--suit) 30%, #f6ead0));
+}
+
+.tr-face-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 6px 4px;
+  color: #3a2163;
+  transition: transform 0.3s;
+}
+
+.tr-face-inner.rev {
+  transform: rotate(180deg);
+}
+
+.tr-face-label {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.tr-face-symbol {
+  font-size: 34px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+}
+
+.tr-face-name {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tr-face-en {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 8px;
+  opacity: 0.7;
+  text-align: center;
+}
+
+/* ---------- 洗牌 ---------- */
+.tr-shuffle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding-top: 18vh;
+}
+
+.tr-shuffle-stack {
+  position: relative;
+  width: 96px;
+  height: 160px;
+}
+
+.tr-shuffle-stack .tr-back {
+  position: absolute;
+  inset: 0;
+  animation: tr-riffle 0.8s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.1s);
+}
+
+@keyframes tr-riffle {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0);
+  }
+  30% {
+    transform: translateX(calc((var(--i) - 3.5) * 14px)) rotate(calc((var(--i) - 3.5) * 5deg));
+  }
+  60% {
+    transform: translateY(-10px);
+  }
+}
+
+/* ---------- 抽牌 ---------- */
+.tr-fan {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.tr-fan-row {
+  display: flex;
+  justify-content: center;
+}
+
+.tr-fan-card {
+  flex-shrink: 0;
+  width: 40px;
+  height: 66px;
+  margin-left: -28px;
+  padding: 0;
+  background: none;
+  border-radius: 8px;
+  transform: translateY(calc(var(--k) * var(--k) * 0.12px)) rotate(calc(var(--k) * 1.1deg));
+  transition:
+    transform 0.2s,
+    opacity 0.3s;
+  animation: tr-fan-in 0.5s ease-out backwards;
+}
+
+.tr-fan-card:first-child {
+  margin-left: 0;
+}
+
+.tr-fan-card:hover:not(.taken) {
+  transform: translateY(-10px) rotate(calc(var(--k) * 1.1deg));
+}
+
+.tr-fan-card.taken {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-40px) scale(1.2);
+}
+
+@keyframes tr-fan-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+.tr-slots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.tr-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 80px;
+  font-size: 12px;
+  color: #8f7fb5;
+  border: 1px dashed rgba(200, 170, 255, 0.4);
+  border-radius: 8px;
+}
+
+.tr-slot.filled {
+  border: none;
+  animation: tr-pop 0.3s ease-out;
+}
+
+/* ---------- 翻牌 ---------- */
+.tr-spread-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px 10px;
+  margin: 18px 0 8px;
+}
+
+.tr-spread-cards.n1 .tr-flip {
+  width: 140px;
+  height: 234px;
+}
+
+.tr-spread-cards.n1 .tr-face-symbol {
+  font-size: 60px;
+}
+
+.tr-spread-cards.n1 .tr-face-name {
+  font-size: 18px;
+}
+
+.tr-spread-cards.n5 {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  grid-template-areas:
+    ". b ."
+    "a c e"
+    ". d .";
+  justify-content: center;
+}
+
+/* 十字：现状在中间，阻碍在上，根源在下，建议在左，结果在右 */
+.tr-spread-cards.n5 .tr-pos:nth-child(1) {
+  grid-area: c;
+}
+.tr-spread-cards.n5 .tr-pos:nth-child(2) {
+  grid-area: b;
+}
+.tr-spread-cards.n5 .tr-pos:nth-child(3) {
+  grid-area: d;
+}
+.tr-spread-cards.n5 .tr-pos:nth-child(4) {
+  grid-area: a;
+}
+.tr-spread-cards.n5 .tr-pos:nth-child(5) {
+  grid-area: e;
+}
+
+.tr-spread-cards.n5 .tr-flip {
+  width: 78px;
+  height: 130px;
+}
+
+.tr-pos {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.tr-pos-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffd98a;
+}
+
+.tr-pos-orient {
+  margin-top: -2px;
+  font-size: 11px;
+  color: #b9f0c9;
+}
+
+.tr-pos-orient.rev {
+  color: #ffb3c7;
+}
+
+.tr-flip {
+  width: 96px;
+  height: 160px;
+  padding: 0;
+  background: none;
+  perspective: 800px;
+  animation: tr-pop 0.45s ease-out both;
+}
+
+.tr-flip:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.tr-flip:not(.flipped) {
+  animation:
+    tr-pop 0.45s ease-out both,
+    tr-glow 1.8s ease-in-out infinite;
+}
+
+.tr-flip-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+.tr-flip.flipped .tr-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.tr-flip-inner > .tr-back,
+.tr-flip-inner > .tr-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+
+.tr-flip-inner > .tr-face {
+  transform: rotateY(180deg);
+}
+
+@keyframes tr-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 rgba(255, 217, 138, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(255, 217, 138, 0.8));
+  }
+}
+
+@keyframes tr-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+/* ---------- 解读 ---------- */
+.tr-reading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  scroll-margin-top: 12px;
+}
+
+.tr-read-card {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(200, 170, 255, 0.22);
+  animation: tr-rise 0.5s ease-out both;
+}
+
+.tr-read-card.summary {
+  background: linear-gradient(160deg, rgba(255, 217, 138, 0.16), rgba(247, 168, 255, 0.12));
+  border-color: rgba(255, 217, 138, 0.4);
+}
+
+@keyframes tr-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.tr-read-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tr-read-pos {
+  padding: 1px 8px;
+  font-size: 12px;
+  border-radius: 999px;
+  color: #2a1550;
+  background: #ffd98a;
+}
+
+.tr-read-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.tr-read-orient {
+  margin-left: 6px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: normal;
+  border-radius: 4px;
+  color: #12391f;
+  background: #b9f0c9;
+}
+
+.tr-read-orient.rev {
+  color: #4a1022;
+  background: #ffb3c7;
+}
+
+.tr-read-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #8f7fb5;
+}
+
+.tr-read-kw {
+  margin: 6px 0 4px;
+  font-size: 13px;
+  color: #ffd98a;
+}
+
+.tr-read-line {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+@media (max-width: 360px) {
+  .tr-fan-card {
+    width: 36px;
+    height: 60px;
+    margin-left: -25px;
+  }
+  .tr-flip {
+    width: 84px;
+    height: 140px;
+  }
+  .tr-spread-cards.n5 .tr-flip {
+    width: 68px;
+    height: 114px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tr-stars,
+  .tr-flip,
+  .tr-fan-card,
+  .tr-shuffle-stack .tr-back {
+    animation: none !important;
+  }
+}

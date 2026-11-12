@@ -1,0 +1,501 @@
+.he-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.he-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.he-head h2 {
+  flex: 1;
+}
+
+.he-pill {
+  padding: 2px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  color: #0b6e4f;
+  background: #dcf3ea;
+  white-space: nowrap;
+}
+
+.he-sub {
+  margin-top: -6px;
+  font-size: 12px;
+  text-align: right;
+}
+
+/* ---------- 牌 ---------- */
+.he-card {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 7px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  color: #1b1b1f;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  transition:
+    transform 0.2s,
+    opacity 0.2s;
+}
+
+.he-card.red {
+  color: #d62839;
+}
+
+.he-card.md {
+  width: 46px;
+  height: 64px;
+}
+.he-card.md .he-card-rank {
+  font-size: 20px;
+}
+.he-card.md .he-card-suit {
+  font-size: 20px;
+}
+
+.he-card.sm {
+  width: 26px;
+  height: 36px;
+  border-radius: 4px;
+}
+.he-card.sm .he-card-rank {
+  font-size: 12px;
+}
+.he-card.sm .he-card-suit {
+  font-size: 12px;
+}
+
+.he-card.lg {
+  width: 60px;
+  height: 84px;
+  border-radius: 9px;
+}
+.he-card.lg .he-card-rank {
+  font-size: 26px;
+}
+.he-card.lg .he-card-suit {
+  font-size: 26px;
+}
+
+.he-card.hl {
+  box-shadow:
+    0 0 0 2px #ffd166,
+    0 0 12px rgba(255, 209, 102, 0.9);
+  transform: translateY(-3px);
+}
+
+.he-card.dim {
+  opacity: 0.45;
+}
+
+.he-card.back {
+  border: 2px solid #fff;
+  background:
+    radial-gradient(circle at 50% 50%, #ffd166 0 3px, transparent 4px),
+    repeating-linear-gradient(45deg, #b3202f 0 4px, #8f1a26 4px 8px);
+}
+
+.he-card.slot {
+  background: transparent;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+}
+
+.he-deal {
+  display: inline-flex;
+  animation: he-deal 0.45s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+}
+
+@keyframes he-deal {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) rotateY(90deg) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- 牌桌 ---------- */
+.he-table {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 10px 12px;
+  border-radius: 90px / 60px;
+  color: #fff;
+  background: radial-gradient(ellipse at 50% 35%, #1f9a6e, #0b6e4f 65%, #075039);
+  box-shadow:
+    inset 0 0 0 5px #5b3a1e,
+    inset 0 0 0 7px #3d2412,
+    0 6px 14px rgba(0, 0, 0, 0.25);
+}
+
+.he-street {
+  font-size: 12px;
+  opacity: 0.85;
+  letter-spacing: 2px;
+}
+
+.he-board {
+  display: flex;
+  gap: 5px;
+  min-height: 64px;
+}
+
+.he-pot {
+  font-size: 14px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* ---------- 座位 ---------- */
+.he-seats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.he-seat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #f4f6f5;
+  border: 2px solid transparent;
+  transition:
+    border-color 0.2s,
+    opacity 0.2s;
+}
+
+.he-seat.me {
+  background: #eef8f3;
+}
+
+.he-seat.turn {
+  border-color: #0b6e4f;
+  box-shadow: 0 0 0 3px rgba(11, 110, 79, 0.15);
+}
+
+.he-seat.folded {
+  opacity: 0.55;
+}
+
+.he-seat.out {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+.he-seat.winner {
+  border-color: #f4b400;
+  background: #fff8e1;
+}
+
+.he-seat-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.he-seat-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.he-seat-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.he-seat-chips {
+  font-size: 12px;
+  color: #555;
+}
+
+.he-badges {
+  display: flex;
+  gap: 2px;
+}
+
+.he-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 50%;
+  color: #0b6e4f;
+  background: #cfe9de;
+}
+
+.he-badge.d {
+  color: #222;
+  background: #fff;
+  border: 1px solid #222;
+}
+
+.he-seat-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-height: 36px;
+}
+
+.he-seat-cards {
+  display: flex;
+  gap: 2px;
+}
+
+.he-seat-status {
+  font-size: 12px;
+  color: #444;
+  text-align: right;
+}
+
+.he-seat-status .plus {
+  font-weight: 700;
+  color: #0b8f4f;
+}
+
+.he-seat-status .minus {
+  font-weight: 700;
+  color: #d62839;
+}
+
+.he-bet {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  color: #5b3a00;
+  background: #ffd166;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.he-seat:has(.he-bet) .he-badges {
+  visibility: hidden;
+}
+
+.he-timer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--p);
+  height: 3px;
+  background: #0b6e4f;
+  transition: width 0.25s linear;
+}
+
+/* ---------- 结果 ---------- */
+.he-result {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 12px;
+  background: #fff8e1;
+  border: 1px solid #f4d27a;
+  animation: he-pop 0.35s ease-out;
+}
+
+.he-pot-tag {
+  margin-right: 6px;
+  padding: 0 6px;
+  font-size: 11px;
+  border-radius: 4px;
+  color: #fff;
+  background: #c08a00;
+}
+
+.he-winner {
+  animation: he-pop 0.5s ease-out;
+}
+
+@keyframes he-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- 我的手牌和操作 ---------- */
+.he-me {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 14px;
+  background: #f4f6f5;
+  border: 2px solid transparent;
+}
+
+.he-me.turn {
+  border-color: #0b6e4f;
+  background: #eef8f3;
+}
+
+.he-me.folded .he-hole {
+  opacity: 0.4;
+}
+
+.he-hole {
+  display: flex;
+  gap: 6px;
+}
+
+.he-me-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.he-me-hand {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.he-me-timer {
+  font-weight: 600;
+  color: #0b6e4f;
+}
+
+.he-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.he-btn {
+  padding: 13px 8px;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 12px;
+}
+
+.he-btn.fold {
+  color: #444;
+  background: #e6e6e6;
+}
+
+.he-btn.check,
+.he-btn.call {
+  background: #1f7ae0;
+}
+
+.he-btn.raise {
+  background: linear-gradient(135deg, #0b6e4f, #13a36f);
+}
+
+.he-btn.grow {
+  flex: 1;
+}
+
+.he-raise {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 14px;
+  background: #eef8f3;
+}
+
+.he-raise-presets {
+  display: flex;
+  gap: 6px;
+}
+
+.he-chip-btn {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 13px;
+  color: #0b6e4f;
+  background: #fff;
+  border: 1px solid #b9dccd;
+}
+
+.he-chip-btn.on {
+  color: #fff;
+  background: #0b6e4f;
+}
+
+.he-raise-slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.he-raise-slider input[type="range"] {
+  flex: 1;
+  padding: 0;
+  accent-color: #0b6e4f;
+}
+
+.he-raise-input {
+  flex: 0 0 84px;
+  padding: 6px 8px;
+  text-align: right;
+}
+
+.he-log {
+  margin: 0;
+}
+
+.he-log li {
+  padding: 2px 0;
+}
+
+.he-log-win {
+  color: #a06b00;
+}
+
+.he-log-street {
+  color: #0b6e4f;
+}
+
+@media (max-width: 360px) {
+  .he-card.md {
+    width: 40px;
+    height: 56px;
+  }
+  .he-card.lg {
+    width: 52px;
+    height: 74px;
+  }
+}

@@ -3,6 +3,7 @@ import { GAME_ORDER, GAMES, type GameId, type RoomView } from "@party/shared";
 import { Avatar, AvatarContext, GameCard, GameDetail, Sheet, randomName } from "./components";
 import { Avalon } from "./games/Avalon";
 import { BombCat } from "./games/BombCat";
+import { Holdem } from "./games/Holdem";
 import { LiarsBar } from "./games/LiarsBar";
 import { Midway } from "./games/Midway";
 import { Moyu } from "./games/Moyu";
@@ -26,8 +27,9 @@ const Quest = lazy(() => import("./games/Quest").then((m) => ({ default: m.Quest
 // 单人游戏同样依赖 three.js，点开时才加载
 const SpaceShooter = lazy(() => import("./solo/SpaceShooter").then((m) => ({ default: m.SpaceShooter })));
 const Stickman = lazy(() => import("./solo/Stickman").then((m) => ({ default: m.Stickman })));
+const Tarot = lazy(() => import("./solo/Tarot").then((m) => ({ default: m.Tarot })));
 
-const NEW_GAMES: GameId[] = ["icecool", "catapult", "moyu", "midway", "avalon", "quest"];
+const NEW_GAMES: GameId[] = ["holdem", "icecool", "catapult", "moyu", "midway", "avalon", "quest"];
 
 export function App() {
   const { room, me, connected, notice, clearNotice, actions } = useParty();
@@ -38,6 +40,7 @@ export function App() {
       <Suspense fallback={<div className="solo-loading">🚀 正在加载…</div>}>
         {solo === "spaceShooter" && <SpaceShooter onExit={() => setSolo(null)} />}
         {solo === "stickman" && <Stickman onExit={() => setSolo(null)} />}
+        {solo === "tarot" && <Tarot onExit={() => setSolo(null)} />}
       </Suspense>
     );
   }
@@ -391,6 +394,7 @@ function RoomScreen({ room, me, actions }: GameProps) {
               )}
               {room.game.gameId === "bombCat" && <BombCat room={room} me={me} actions={actions} />}
               {room.game.gameId === "liarsBar" && <LiarsBar room={room} me={me} actions={actions} />}
+              {room.game.gameId === "holdem" && <Holdem room={room} me={me} actions={actions} />}
               {room.game.gameId === "uno" && <Uno room={room} me={me} actions={actions} />}
               {room.game.gameId === "werewolf" && <Werewolf room={room} me={me} actions={actions} />}
               {room.game.gameId === "avalon" && <Avalon room={room} me={me} actions={actions} />}
