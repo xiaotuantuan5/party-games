@@ -11,7 +11,12 @@ import { RoomManager, playerIdFromToken, validateName, validateToken } from "./r
 interface SocketData {
   playerId?: string;
   roomCode?: string;
+  /** 上一次位置上报的时间，用来限流 */
+  lastMoveAt?: number;
 }
+
+/** 客户端每秒发 12 次左右，超过 25 次的直接丢掉 */
+const MIN_MOVE_INTERVAL_MS = 40;
 
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 
@@ -125,6 +130,20 @@ io.on("connection", (socket: AppSocket) => {
       rooms.restart(code, playerId);
     }),
   );
+
+  socket.on("game:move", (move) => {
+    const { roomCode, playerId, lastMoveAt = 0 } = socket.data;
+    if (!roomCode || !playerId) return;
+    const now = Date.now();
+    if (now - lastMoveAt < MIN_MOVE_INTERVAL_MS) return;
+    socket.data.lastMoveAt = now;
+    try {
+      const res = rooms.move(roomCode, playerId, move);
+      if (res) for (const id of res.socketIds) io.to(id).volatile.emit("game:move", playerId, res.relay);
+    } catch (err) {
+      console.error(err);
+    }
+  });
 
   socket.on("disconnect", () => {
     const { roomCode, playerId } = socket.data;

@@ -6,6 +6,7 @@ import {
   type GameAction,
   type GameId,
   type PlayerInfo,
+  type QuestMove,
   type RoomView,
 } from "@party/shared";
 import { ENGINES } from "./games/index.js";
@@ -168,6 +169,21 @@ export class RoomManager {
     if ((action as GameAction).gameId !== room.game.engine.meta.id) throw new GameError("操作与当前游戏不匹配");
     room.game.engine.handleAction(room.game.state, playerId, action);
     this.onChange(room);
+  }
+
+  /**
+   * 实时位置：交给游戏引擎校验，返回要转发的数据和接收方。
+   * 只有离散状态（水晶、机关、终点）变化时才推送完整房间视图，平时只转发位置。
+   */
+  move(code: string, playerId: string, data: unknown): { relay: QuestMove; socketIds: string[] } | null {
+    const room = this.get(code);
+    const engine = room?.game?.engine;
+    if (!room || !engine?.move || !room.players.some((p) => p.id === playerId)) return null;
+    const res = engine.move(room.game!.state, playerId, data);
+    if (!res) return null;
+    if (res.changed) this.onChange(room);
+    const socketIds = room.players.filter((p) => p.id !== playerId && p.socketId).map((p) => p.socketId!);
+    return { relay: res.relay, socketIds };
   }
 
   backToLobby(code: string, playerId: string): void {

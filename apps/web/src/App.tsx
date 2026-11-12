@@ -14,11 +14,13 @@ import { useRun, type GameProps } from "./ui";
 
 // 3D 层层叠依赖 three.js 和物理引擎，体积较大，进入游戏时才加载
 const Jenga = lazy(() => import("./games/Jenga").then((m) => ({ default: m.Jenga })));
+// 秘境闯关同样是 3D，进入游戏时才加载
+const Quest = lazy(() => import("./games/Quest").then((m) => ({ default: m.Quest })));
 
 // 单人游戏同样依赖 three.js，点开时才加载
 const SpaceShooter = lazy(() => import("./solo/SpaceShooter").then((m) => ({ default: m.SpaceShooter })));
 
-const NEW_GAMES: GameId[] = ["avalon", "werewolf", "uno"];
+const NEW_GAMES: GameId[] = ["avalon", "quest", "werewolf", "uno"];
 
 export function App() {
   const { room, me, connected, notice, clearNotice, actions } = useParty();
@@ -45,8 +47,19 @@ export function App() {
   );
 }
 
+type HomeTab = "multi" | "solo";
+const TAB_KEY = "party.homeTab";
+
 function Home({ actions, onSolo }: { actions: PartyActions; onSolo: (id: SoloGameId) => void }) {
   const invited = (new URLSearchParams(location.search).get("room") ?? "").toUpperCase();
+  // 被邀请时一定停在多人页；否则记住上次看的是哪一页
+  const [tab, setTabState] = useState<HomeTab>(() =>
+    !invited && localStorage.getItem(TAB_KEY) === "solo" ? "solo" : "multi",
+  );
+  const setTab = (t: HomeTab) => {
+    setTabState(t);
+    localStorage.setItem(TAB_KEY, t);
+  };
   const [name, setName] = useState(savedName());
   const [code, setCode] = useState(invited);
   const [detail, setDetail] = useState<GameId | null>(null);
@@ -71,97 +84,122 @@ function Home({ actions, onSolo }: { actions: PartyActions; onSolo: (id: SoloGam
         <p>手机打开就能玩，开个房间把链接发给朋友</p>
       </header>
 
-      <section className={`panel me-panel ${nameError ? "invalid" : ""}`}>
-        <Avatar name={name || "?"} seed={name || "?"} size={44} />
-        <input
-          ref={nameRef}
-          value={name}
-          maxLength={12}
-          placeholder="先起个昵称"
-          aria-label="昵称"
-          onChange={(e) => {
-            setName(e.target.value);
-            setNameError(false);
-          }}
-        />
+      <nav className="home-tabs" role="tablist" aria-label="游戏分类">
         <button
           type="button"
-          className="icon-btn"
-          title="随机一个昵称"
-          onClick={() => {
-            setName(randomName());
-            setNameError(false);
-          }}
+          role="tab"
+          aria-selected={tab === "multi"}
+          className={tab === "multi" ? "active" : ""}
+          onClick={() => setTab("multi")}
         >
-          🎲
+          👥 多人一起玩 <span className="home-tab-count">{GAME_ORDER.length}</span>
         </button>
-      </section>
-      {nameError && <p className="error">先起个昵称，朋友才知道你是谁</p>}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "solo"}
+          className={tab === "solo" ? "active" : ""}
+          onClick={() => setTab("solo")}
+        >
+          👤 一个人玩 <span className="home-tab-count">{SOLO_ORDER.length}</span>
+        </button>
+      </nav>
 
-      {invited && (
-        <section className="panel invite-panel">
-          <div>
-            📨 朋友邀请你加入房间 <strong className="code">{invited}</strong>
+      {tab === "multi" ? (
+        <>
+          <section className={`panel me-panel ${nameError ? "invalid" : ""}`}>
+            <Avatar name={name || "?"} seed={name || "?"} size={44} />
+            <input
+              ref={nameRef}
+              value={name}
+              maxLength={12}
+              placeholder="先起个昵称"
+              aria-label="昵称"
+              onChange={(e) => {
+                setName(e.target.value);
+                setNameError(false);
+              }}
+            />
+            <button
+              type="button"
+              className="icon-btn"
+              title="随机一个昵称"
+              onClick={() => {
+                setName(randomName());
+                setNameError(false);
+              }}
+            >
+              🎲
+            </button>
+          </section>
+          {nameError && <p className="error">先起个昵称，朋友才知道你是谁</p>}
+
+          {invited ? (
+            <section className="panel invite-panel">
+              <div>
+                📨 朋友邀请你加入房间 <strong className="code">{invited}</strong>
+              </div>
+              <button type="button" className="primary-lg" onClick={join}>
+                加入房间
+              </button>
+            </section>
+          ) : (
+            <section className="panel join-panel">
+              <span>有房间号？</span>
+              <input
+                value={code}
+                maxLength={4}
+                placeholder="4 位房间号"
+                aria-label="房间号"
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === "Enter" && code.length === 4 && join()}
+              />
+              <button type="button" disabled={code.length !== 4} onClick={join}>
+                加入
+              </button>
+            </section>
+          )}
+
+          <h2 className="section-title">{invited ? "或者自己开一个房间" : "选个游戏，开房间"}</h2>
+          <div className="game-grid">
+            {GAME_ORDER.map((id) => (
+              <GameCard key={id} meta={GAMES[id]} isNew={NEW_GAMES.includes(id)} onClick={() => setDetail(id)} />
+            ))}
           </div>
-          <button type="button" className="primary-lg" onClick={join}>
-            加入房间
-          </button>
-        </section>
+          {error && <p className="error">{error}</p>}
+        </>
+      ) : (
+        <>
+          <h2 className="section-title">不用开房间，点开就玩，最高分存在本机</h2>
+          {SOLO_ORDER.map((id) => {
+            const meta = SOLO_GAMES[id];
+            const best = getBest(id);
+            return (
+              <button
+                key={id}
+                type="button"
+                className="solo-card"
+                style={{ "--c": meta.color } as CSSProperties}
+                onClick={() => onSolo(id)}
+              >
+                <span className="solo-card-emoji">{meta.emoji}</span>
+                <span className="solo-card-info">
+                  <span className="solo-card-name">
+                    {meta.name}
+                    <span className="solo-card-new">NEW</span>
+                  </span>
+                  <span className="solo-card-tagline">{meta.tagline}</span>
+                  <span className="solo-card-meta">
+                    👤 单人 · {meta.tags.slice(0, 2).join(" · ")}
+                    {best > 0 && ` · 🏆 ${best.toLocaleString()}`}
+                  </span>
+                </span>
+                <span className="solo-card-go">▶</span>
+              </button>
+            );
+          })}
+        </>
       )}
-
-      <h2 className="section-title">{invited ? "或者自己开一个房间" : "选个游戏，开房间"}</h2>
-      <div className="game-grid">
-        {GAME_ORDER.map((id) => (
-          <GameCard key={id} meta={GAMES[id]} isNew={NEW_GAMES.includes(id)} onClick={() => setDetail(id)} />
-        ))}
-      </div>
-
-      <h2 className="section-title">一个人玩</h2>
-      {SOLO_ORDER.map((id) => {
-        const meta = SOLO_GAMES[id];
-        const best = getBest(id);
-        return (
-          <button
-            key={id}
-            type="button"
-            className="solo-card"
-            style={{ "--c": meta.color } as CSSProperties}
-            onClick={() => onSolo(id)}
-          >
-            <span className="solo-card-emoji">{meta.emoji}</span>
-            <span className="solo-card-info">
-              <span className="solo-card-name">
-                {meta.name}
-                <span className="solo-card-new">NEW</span>
-              </span>
-              <span className="solo-card-tagline">{meta.tagline}</span>
-              <span className="solo-card-meta">
-                👤 单人 · {meta.tags.slice(0, 2).join(" · ")}
-                {best > 0 && ` · 🏆 ${best.toLocaleString()}`}
-              </span>
-            </span>
-            <span className="solo-card-go">▶</span>
-          </button>
-        );
-      })}
-
-      {!invited && (
-        <section className="panel join-panel">
-          <span>有房间号？</span>
-          <input
-            value={code}
-            maxLength={4}
-            placeholder="4 位房间号"
-            aria-label="房间号"
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === "Enter" && code.length === 4 && join()}
-          />
-          <button type="button" disabled={code.length !== 4} onClick={join}>
-            加入
-          </button>
-        </section>
-      )}
-      {error && <p className="error">{error}</p>}
 
       {detail && (
         <Sheet onClose={() => setDetail(null)}>
@@ -222,6 +260,15 @@ function RoomScreen({ room, me, actions }: GameProps) {
     if (inGame && !confirm("游戏还没结束，确定要退出吗？")) return;
     actions.leave();
   };
+
+  // 实时 3D 游戏需要整块屏幕，自己管理菜单和结算界面
+  if (room.game?.gameId === "quest") {
+    return (
+      <Suspense fallback={<div className="solo-loading">⛩️ 正在进入秘境…</div>}>
+        <Quest key={room.gameNo} room={room} me={me} actions={actions} onLeave={leave} />
+      </Suspense>
+    );
+  }
 
   const n = room.players.length;
   const need = meta.minPlayers - n;

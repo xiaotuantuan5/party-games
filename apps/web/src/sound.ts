@@ -295,6 +295,40 @@ export const sfx = {
     tone(880, 0.12, { gain: 0.14 });
     tone(1175, 0.2, { gain: 0.14, delay: 0.12 });
   },
+  /** 秘境闯关：起跳 */
+  hop() {
+    tone(330, 0.12, { type: "sine", slideTo: 620, gain: 0.12 });
+  },
+  /** 秘境闯关：落地 */
+  land() {
+    noise(0.07, { from: 900, to: 200, gain: 0.12 });
+  },
+  /** 秘境闯关：捡到水晶，清脆的上行琶音 */
+  crystal() {
+    [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, 0.22, { type: "sine", gain: 0.09, delay: i * 0.05 }));
+  },
+  /** 秘境闯关：打开 / 收起风之翼 */
+  glide(open = true) {
+    noise(0.35, { filter: "bandpass", from: open ? 500 : 2500, to: open ? 2500 : 500, gain: 0.16 });
+  },
+  /** 秘境闯关：踩上机关 */
+  plate() {
+    tone(196, 0.18, { type: "triangle", gain: 0.18 });
+    tone(392, 0.25, { type: "sine", gain: 0.1, delay: 0.06 });
+  },
+  /** 秘境闯关：结界打开 */
+  gate() {
+    [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, 0.5, { type: "triangle", gain: 0.1, delay: i * 0.09 }));
+    noise(1.2, { filter: "bandpass", from: 300, to: 4000, gain: 0.12 });
+  },
+  /** 秘境闯关：被史莱姆弹开 */
+  boing() {
+    tone(180, 0.25, { type: "sine", slideTo: 520, gain: 0.2 });
+  },
+  /** 秘境闯关：掉出地图 */
+  fall() {
+    tone(700, 0.6, { type: "triangle", slideTo: 120, gain: 0.14 });
+  },
   win() {
     const d = 0.8; // 先让爆炸声播完
     [523, 659, 784].forEach((f, i) => tone(f, 0.18, { type: "triangle", gain: 0.18, delay: d + i * 0.14 }));

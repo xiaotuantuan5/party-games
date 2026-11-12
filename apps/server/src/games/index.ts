@@ -4,6 +4,7 @@ import { bombCat } from "./bombCat.js";
 import { jenga } from "./jenga.js";
 import { liarsBar } from "./liarsBar.js";
 import { numberBomb } from "./numberBomb.js";
+import { quest } from "./quest.js";
 import type { AnyGameEngine } from "./types.js";
 import { undercover } from "./undercover.js";
 import { uno } from "./uno.js";
@@ -19,4 +20,5 @@ export const ENGINES: Record<GameId, AnyGameEngine> = {
   jenga,
   werewolf,
   avalon,
+  quest,
 };

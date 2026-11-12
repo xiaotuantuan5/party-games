@@ -3,6 +3,7 @@ import type { BombCatAction, BombCatView } from "./bombCat.js";
 import type { JengaAction, JengaView } from "./jenga.js";
 import type { LiarsBarAction, LiarsBarView } from "./liarsBar.js";
 import type { NumberBombAction, NumberBombView } from "./numberBomb.js";
+import type { QuestAction, QuestView } from "./quest.js";
 import type { UndercoverAction, UndercoverView } from "./undercover.js";
 import type { UnoAction, UnoView } from "./uno.js";
 import type { WerewolfAction, WerewolfView } from "./werewolf.js";
@@ -12,11 +13,12 @@ export * from "./bombCat.js";
 export * from "./jenga.js";
 export * from "./liarsBar.js";
 export * from "./numberBomb.js";
+export * from "./quest.js";
 export * from "./undercover.js";
 export * from "./uno.js";
 export * from "./werewolf.js";
 
-export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf" | "avalon";
+export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf" | "avalon" | "quest";
 
 export interface GameMeta {
   id: GameId;
@@ -56,6 +58,27 @@ export const GAMES: Record<GameId, GameMeta> = {
       "没有人会出局，所有人从头玩到尾。白天随便讨论、带节奏、互相怀疑都可以。",
     ],
     color: "#1f4e79",
+  },
+  quest: {
+    id: "quest",
+    name: "秘境闯关",
+    emoji: "⛩️",
+    tagline: "3D 实时合作，一起穿过浮空岛",
+    description:
+      "卡通渲染的 3D 浮空岛冒险。大家同时在线、各自操控角色：跳石柱、一起踩机关打开结界、躲开史莱姆、从高台滑翔过深渊，全员到达神像就算通关。",
+    minPlayers: 2,
+    maxPlayers: 6,
+    duration: "5~10 分钟",
+    tags: ["3D", "实时合作", "闯关"],
+    rules: [
+      "左半边屏幕按住拖动是摇杆，右半边拖动转视角；电脑上用 WASD / 方向键移动，空格跳跃，鼠标拖动转视角。",
+      "跳跃按钮在右下角。人在空中时再按一次跳跃，打开风之翼滑翔，再按一次收起。",
+      "第一段：跳过石柱到第二座岛。岛上有两块机关石板，需要两个人同时站上去才能打开石桥上的结界。",
+      "第二段：过桥后小心史莱姆，被撞到会被弹开。顺着石台跳上高台。",
+      "第三段：从高台跳下并打开风之翼，滑翔到最后一座岛。掉下去会回到当前岛重来。",
+      "所有人同时站进神像前的光圈就算通关。路上的星辉水晶捡得越多，评价越高。",
+    ],
+    color: "#2fb5a3",
   },
   werewolf: {
     id: "werewolf",
@@ -197,9 +220,9 @@ export const GAMES: Record<GameId, GameMeta> = {
 };
 
 /** 首页展示顺序 */
-export const GAME_ORDER: GameId[] = ["avalon", "werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
+export const GAME_ORDER: GameId[] = ["avalon", "quest", "werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
 
-export type GameView = AvalonView | NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView;
+export type GameView = AvalonView | NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView | QuestView;
 export type GameAction =
   | AvalonAction
   | NumberBombAction
@@ -208,4 +231,5 @@ export type GameAction =
   | LiarsBarAction
   | UnoAction
   | JengaAction
-  | WerewolfAction;
+  | WerewolfAction
+  | QuestAction;
