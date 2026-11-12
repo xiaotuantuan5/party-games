@@ -7,6 +7,13 @@ import * as THREE from "three";
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
+/** 地面边长（足够让镜头在任何角度都看不到边） */
+const FLOOR_SIZE = 320;
+/** 水墨天幕的半径 */
+const DOME_RADIUS = 120;
+/** 中景远山的数量 */
+const HILL_COUNT = 48;
+
 // ================= 花瓣 / 飘叶 =================
 
 /** 一次绘制几百片花瓣。ambient 的会一直飘，burst 的是技能炸出来的，会慢慢消失 */
@@ -133,93 +140,152 @@ export class Petals {
   }
 }
 
-// ================= 水墨背景 =================
+// ================= 水墨全景 =================
 
-function inkBackdrop(room: number): THREE.CanvasTexture {
+/**
+ * 环绕一圈的水墨山水：2048×512，左右首尾相接（山脊用整数倍频率的正弦叠加，保证拼缝处没有断开）。
+ * 天色按房间变，山门和竹林偏青灰，血煞大殿偏血红。
+ */
+function panorama(room: number): THREE.CanvasTexture {
+  const W = 2048;
+  const H = 512;
   const c = document.createElement("canvas");
-  c.width = 1024;
-  c.height = 512;
+  c.width = W;
+  c.height = H;
   const g = c.getContext("2d")!;
-  const sky = g.createLinearGradient(0, 0, 0, 512);
   const palette = [
-    ["#07060f", "#1a2238"], // 山门
-    ["#06100c", "#18302a"], // 竹林
-    ["#0c0810", "#2a1a24"], // 古寺庭院
-    ["#0a0a10", "#22222e"], // 藏经楼
-    ["#120406", "#3a0a12"], // 血煞大殿
-  ][room] ?? ["#07060f", "#1a2238"];
+    ["#060814", "#1c2640", "#4a5a78"], // 山门：夜色偏蓝
+    ["#050d0b", "#14302a", "#3a5a4a"], // 竹林：青绿
+    ["#0b070e", "#2a1a26", "#5a3a46"], // 古寺庭院：紫灰
+    ["#08080e", "#1e1e2a", "#3a3a4e"], // 藏经楼
+    ["#120406", "#3a0a12", "#7a2430"], // 血煞大殿：血色
+  ][room] ?? ["#060814", "#1c2640", "#4a5a78"];
+
+  const sky = g.createLinearGradient(0, 0, 0, H * 0.7);
   sky.addColorStop(0, palette[0]!);
-  sky.addColorStop(1, palette[1]!);
+  sky.addColorStop(0.7, palette[1]!);
+  sky.addColorStop(1, palette[2]!);
   g.fillStyle = sky;
-  g.fillRect(0, 0, 1024, 512);
-  // 月亮
+  g.fillRect(0, 0, W, H);
+
+  // 月亮与月晕，放在画面的右上方
   if (room !== 4) {
-    g.fillStyle = "rgba(232,240,255,0.92)";
+    const halo = g.createRadialGradient(1500, 110, 40, 1500, 110, 260);
+    halo.addColorStop(0, "rgba(220,230,255,0.35)");
+    halo.addColorStop(1, "rgba(220,230,255,0)");
+    g.fillStyle = halo;
+    g.fillRect(1200, 0, 600, 420);
+    g.fillStyle = "rgba(236,242,255,0.95)";
     g.beginPath();
-    g.arc(790, 120, 46, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = "rgba(232,240,255,0.08)";
-    g.beginPath();
-    g.arc(790, 120, 110, 0, Math.PI * 2);
+    g.arc(1500, 110, 48, 0, Math.PI * 2);
     g.fill();
   } else {
-    g.fillStyle = "rgba(255,80,60,0.25)";
+    g.fillStyle = "rgba(255,80,60,0.28)";
     g.beginPath();
-    g.arc(512, 150, 150, 0, Math.PI * 2);
+    g.arc(1024, 150, 170, 0, Math.PI * 2);
     g.fill();
   }
-  // 层层叠叠的远山，越靠前越深
+
+  // 远处的雾带，让层次之间有呼吸感
+  for (const [y, a] of [
+    [250, 0.22],
+    [300, 0.18],
+    [360, 0.12],
+  ] as const) {
+    const mist = g.createLinearGradient(0, y - 30, 0, y + 30);
+    mist.addColorStop(0, "rgba(200,212,235,0)");
+    mist.addColorStop(0.5, `rgba(200,212,235,${a})`);
+    mist.addColorStop(1, "rgba(200,212,235,0)");
+    g.fillStyle = mist;
+    g.fillRect(0, y - 30, W, 60);
+  }
+
+  // 层层叠叠的山脊，越靠前越深；每层用整数倍频率保证首尾相接
+  const ridge = (x: number, k: number, phase: number) => Math.sin((2 * Math.PI * k * x) / W + phase);
   for (let layer = 0; layer < 4; layer++) {
-    const base = 300 + layer * 55;
-    const alpha = 0.3 + layer * 0.2;
-    g.fillStyle = `rgba(6,6,12,${alpha})`;
+    const base = 300 + layer * 52;
+    const alpha = 0.32 + layer * 0.2;
+    const ph = layer * 1.7;
+    g.fillStyle = `rgba(6,6,14,${alpha})`;
     g.beginPath();
-    g.moveTo(0, 512);
-    for (let x = 0; x <= 1024; x += 16) {
-      const y = base - Math.sin(x * 0.012 + layer * 2) * 40 - Math.sin(x * 0.031 + layer) * 18 - Math.random() * 6;
+    g.moveTo(0, H);
+    for (let x = 0; x <= W; x += 8) {
+      const y =
+        base -
+        ridge(x, 3, ph) * 30 -
+        ridge(x, 7, ph * 2) * 16 -
+        ridge(x, 19, ph * 3) * 6 -
+        (layer % 2) * 8;
       g.lineTo(x, y);
     }
-    g.lineTo(1024, 512);
+    g.lineTo(W, H);
     g.closePath();
     g.fill();
   }
-  // 各场景的剪影
+
+  // 各场景的剪影，放在画面的几个固定角度上
   g.fillStyle = "rgba(4,4,8,0.95)";
   if (room === 0) {
     // 山门后的飞檐
-    for (const x of [140, 880]) {
+    for (const x of [300, 1400]) {
       g.beginPath();
-      g.moveTo(x - 150, 300);
-      g.quadraticCurveTo(x, 250, x + 150, 300);
-      g.lineTo(x + 120, 318);
-      g.lineTo(x - 120, 318);
+      g.moveTo(x - 160, 300);
+      g.quadraticCurveTo(x, 250, x + 160, 300);
+      g.lineTo(x + 128, 318);
+      g.lineTo(x - 128, 318);
       g.closePath();
       g.fill();
     }
   } else if (room === 1) {
     // 竹林剪影
-    for (let x = 0; x < 1024; x += 26) {
-      g.fillRect(x + Math.random() * 6, 170 + Math.random() * 60, 6, 340);
+    for (let x = 0; x < W; x += 22) {
+      g.fillRect(x + ((x * 37) % 9), 170 + ((x * 53) % 60), 6, 340);
     }
   } else if (room === 2) {
     // 古塔
-    g.fillRect(470, 150, 84, 362);
+    g.fillRect(990, 150, 84, 362);
     for (let i = 0; i < 5; i++) {
-      g.fillRect(455 - i * 4, 170 + i * 60, 114 + i * 8, 14);
+      g.fillRect(975 - i * 4, 170 + i * 60, 114 + i * 8, 14);
     }
   } else if (room === 4) {
     // 佛像剪影，在血色天光里
     g.beginPath();
-    g.arc(512, 220, 60, 0, Math.PI * 2);
+    g.arc(1024, 220, 60, 0, Math.PI * 2);
     g.fill();
-    g.fillRect(452, 270, 120, 160);
+    g.fillRect(964, 270, 120, 160);
     g.beginPath();
-    g.moveTo(300, 512);
-    g.quadraticCurveTo(512, 250, 724, 512);
+    g.moveTo(812, H);
+    g.quadraticCurveTo(1024, 250, 1236, H);
     g.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  return tex;
+}
+
+/** 水面的涟漪纹理，用来做远处的河或湖 */
+function waterTexture(): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 512;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#16303c";
+  g.fillRect(0, 0, 512, 512);
+  g.strokeStyle = "rgba(150,200,220,0.16)";
+  g.lineWidth = 2;
+  for (let i = 0; i < 90; i++) {
+    const y = (i * 37) % 512;
+    const x = (i * 83) % 512;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.quadraticCurveTo(x + 30, y - 4, x + 60, y);
+    g.stroke();
   }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   return tex;
 }
 
@@ -264,6 +330,9 @@ export interface Theme {
   hemi: number;
   /** 血煞大殿的血池，用来做脉动 */
   pulse: THREE.Object3D[];
+  /** 雾的起止距离，户外远一些，室内近一些 */
+  fogNear: number;
+  fogFar: number;
 }
 
 const PALETTE = {
@@ -295,25 +364,62 @@ export function buildTheme(group: THREE.Group, room: number, width: number, door
   const sway: { obj: THREE.Object3D; base: number; amp: number; speed: number }[] = [];
   const bob: { obj: THREE.Object3D; base: number; amp: number; speed: number }[] = [];
 
-  // 地面：石板或木地板，尽量宽，镜头横移时不露边
+  const outdoor = room <= 2;
+  const cx = width / 2;
+
+  // 地面：石板或木地板，足够大，第三人称镜头绕着转也不露边
   const floorTex = tileFloor(room);
-  floorTex.repeat.set(width / 4, 6);
+  floorTex.repeat.set(FLOOR_SIZE / 4, FLOOR_SIZE / 4);
   const floor = new THREE.Mesh(
-    track(new THREE.PlaneGeometry(width + 40, 24)),
+    track(new THREE.PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE)),
     track(new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.9, metalness: 0.02 })),
   );
   floor.rotation.x = -Math.PI / 2;
-  floor.position.set(width / 2, 0, 0);
+  floor.position.set(cx, 0, 0);
   add(floor);
 
-  // 远景水墨山水
-  const backdropTex = track(inkBackdrop(room));
-  const backdrop = new THREE.Mesh(
-    track(new THREE.PlaneGeometry(width + 60, (width + 60) / 2)),
-    track(new THREE.MeshBasicMaterial({ map: backdropTex, depthWrite: false, toneMapped: false })),
+  // 环绕一圈的水墨山水天幕：镜头怎么转都能看到远山和天色
+  const pano = track(panorama(room));
+  const dome = new THREE.Mesh(
+    track(new THREE.CylinderGeometry(DOME_RADIUS, DOME_RADIUS, 72, 96, 1, true)),
+    track(new THREE.MeshBasicMaterial({ map: pano, side: THREE.BackSide, depthWrite: false, fog: false, toneMapped: false })),
   );
-  backdrop.position.set(width / 2, 7, -12);
-  add(backdrop);
+  dome.position.set(cx, 18, 0);
+  add(dome);
+
+  // 中景远山：一圈低多边形山体，雾会把远处的淡掉，形成层次
+  const hills = track(new THREE.InstancedMesh(
+    track(new THREE.ConeGeometry(1, 1, 7, 1)),
+    track(new THREE.MeshStandardMaterial({ color: outdoor ? 0x1e2638 : 0x18141c, roughness: 1, metalness: 0 })),
+    HILL_COUNT,
+  ));
+  const hillDummy = new THREE.Object3D();
+  for (let i = 0; i < HILL_COUNT; i++) {
+    const a = (i / HILL_COUNT) * Math.PI * 2 + rand(-0.05, 0.05);
+    const r = 92 + rand(-6, 8);
+    const w = rand(12, 22);
+    const h = rand(14, 30);
+    hillDummy.position.set(cx + Math.cos(a) * r, h / 2 - 3, Math.sin(a) * r);
+    hillDummy.scale.set(w, h, w);
+    hillDummy.rotation.set(0, rand(0, Math.PI), 0);
+    hillDummy.updateMatrix();
+    hills.setMatrixAt(i, hillDummy.matrix);
+  }
+  hills.instanceMatrix.needsUpdate = true;
+  add(hills);
+
+  // 户外的水面：放在场地身后，镜头能看到远处的河或湖
+  if (outdoor) {
+    const waterTex = track(waterTexture());
+    waterTex.repeat.set(FLOOR_SIZE / 16, 3);
+    const water = new THREE.Mesh(
+      track(new THREE.PlaneGeometry(FLOOR_SIZE, 52)),
+      track(new THREE.MeshStandardMaterial({ map: waterTex, color: 0xb8e0ec, roughness: 0.16, metalness: 0.4 })),
+    );
+    water.rotation.x = -Math.PI / 2;
+    water.position.set(cx, 0.02, -35);
+    add(water);
+  }
 
   const lantern = (x: number, y: number, z: number, color: number, k = 1) => {
     const g = new THREE.Group();
@@ -500,6 +606,8 @@ export function buildTheme(group: THREE.Group, room: number, width: number, door
   return {
     petals,
     fog,
+    fogNear: outdoor ? 60 : 30,
+    fogFar: outdoor ? 170 : 90,
     sky,
     ground,
     hemi,

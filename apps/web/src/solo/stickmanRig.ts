@@ -24,6 +24,8 @@ export interface Pose {
   wpn: number;
   /** 整个身体绕竖直轴额外转多少（旋风斩用） */
   spinY: number;
+  /** 上身相对髋部扭转多少（跑步时肩和髋反向转，让上下身协调） */
+  twist: number;
   /** 整个身体绕髋部前后翻（倒地、空翻用），正值是往后仰 */
   roll: number;
 }
@@ -44,6 +46,7 @@ export const STANCE: Pose = {
   knR: -0.4,
   wpn: 0.7,
   spinY: 0,
+  twist: 0,
   roll: 0,
 };
 
@@ -90,6 +93,7 @@ export function runPose(phase: number, base: Pose = STANCE): Pose {
       shR: 0.4 + 0.45 * s,
       elR: 1.1,
       wpn: 1.1,
+      twist: -0.22 * s,
     },
     base,
   );
@@ -135,7 +139,8 @@ export interface Debris {
   life: number;
 }
 
-const LIMB = 0.045;
+/** 四肢的半径：很细，看起来是线条 */
+const LIMB = 0.024;
 const UPPER_ARM = 0.42;
 const FOREARM = 0.4;
 const THIGH = 0.5;
@@ -157,7 +162,10 @@ const GEO = {
   thigh: capsule(THIGH, LIMB * 1.1),
   shin: capsule(SHIN, LIMB),
   torso: capsule(TORSO, LIMB * 1.3, true),
-  head: new THREE.SphereGeometry(0.13, 14, 10),
+  /** 头是一个细圆环，火柴人的线条风格 */
+  head: new THREE.TorusGeometry(0.12, 0.02, 6, 22),
+  /** 关节的小圆点，让肩、肘、髋、膝的位置一眼能看出来 */
+  joint: new THREE.SphereGeometry(0.036, 8, 6),
   blade: new THREE.BoxGeometry(0.03, 1.15, 0.012).translate(0, -0.72, 0),
   guard: new THREE.BoxGeometry(0.14, 0.03, 0.04).translate(0, -0.12, 0),
   spearShaft: new THREE.CylinderGeometry(0.014, 0.014, 1.9, 5),
@@ -256,6 +264,12 @@ export class StickRig implements Model {
     const head = limb(this.neck, GEO.head);
     head.position.y = 0.24;
 
+    const joint = (parent: THREE.Object3D) => {
+      const m = new THREE.Mesh(GEO.joint, this.mat);
+      parent.add(m);
+      this.limbs.push(m);
+    };
+
     for (const [sh, el, z] of [
       [this.shL, this.elL, -0.16],
       [this.shR, this.elR, 0.16],
@@ -263,9 +277,11 @@ export class StickRig implements Model {
       sh.position.set(0, -0.02, z);
       chest.add(sh);
       limb(sh, GEO.upper);
+      joint(sh);
       el.position.y = -UPPER_ARM;
       sh.add(el);
       limb(el, GEO.fore);
+      joint(el);
     }
     for (const [hip, kn, z] of [
       [this.hipL, this.knL, -0.1],
@@ -274,9 +290,11 @@ export class StickRig implements Model {
       hip.position.z = z;
       this.hips.add(hip);
       limb(hip, GEO.thigh);
+      joint(hip);
       kn.position.y = -THIGH;
       hip.add(kn);
       limb(kn, GEO.shin);
+      joint(kn);
     }
 
     // 武器挂在右手（前臂末端）
@@ -390,6 +408,7 @@ export class StickRig implements Model {
     this.hips.position.y = HIP_HEIGHT + p.rootY;
     this.hips.rotation.z = p.roll;
     this.spine.rotation.z = -p.lean;
+    this.spine.rotation.y = p.twist;
     this.neck.rotation.z = -p.neck;
     this.shL.rotation.z = p.shL;
     this.elL.rotation.z = p.elL;

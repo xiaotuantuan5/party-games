@@ -32,7 +32,7 @@ import { BugModel, P, STANCE, StickRig, glowMat, idlePose, keyed, mixPose, pose,
 /**
  * 火柴人刷图：单人 2.5D 横版动作闯关，纯前端运行。
  * 逻辑坐标：x 横向（房间从 0 到 width）、z 纵深（-3 ~ 3，负值离镜头远）、y 高度。
- * 攻击判定只在逻辑坐标里做，画面是 3D 的，相机平时固定斜视角，放大招时运镜。
+ * 攻击判定只在逻辑坐标里做，画面是 3D 的，相机平时是第三人称过肩视角，放大招时运镜。
  */
 
 // ================= 对外接口 =================
@@ -613,7 +613,7 @@ export class StickmanScene {
     this.numbers = new DamageNumbers(this.scene);
 
     this.scene.background = new THREE.Color(0x07060c);
-    this.scene.fog = new THREE.Fog(0x07060c, 20, 46);
+    this.scene.fog = new THREE.Fog(0x07060c, 40, 120);
     this.sun.position.set(-4, 10, 8);
     this.scene.add(this.hemi, this.sun, this.env, this.sparks.points, this.puffs.points, this.trail.mesh);
 
@@ -633,8 +633,7 @@ export class StickmanScene {
 
     this.player = this.makePlayer();
     this.buildRoom(0);
-    this.director.setBounds(this.roomW);
-    this.director.snap(this.player.pos.x);
+    this.director.snap(this.player.pos, this.player.facing);
 
     window.addEventListener("keydown", this.onKeyDown);
     window.addEventListener("keyup", this.onKeyUp);
@@ -833,7 +832,7 @@ export class StickmanScene {
     this.roomW = def.width;
     this.theme = buildTheme(this.env, idx, def.width, this.doorMat);
     this.scene.background = new THREE.Color(this.theme.fog);
-    this.scene.fog = new THREE.Fog(this.theme.fog, 22, 50);
+    this.scene.fog = new THREE.Fog(this.theme.fog, this.theme.fogNear, this.theme.fogFar);
     this.hemi.color.set(this.theme.sky);
     this.hemi.groundColor.set(this.theme.ground);
     this.hemi.intensity = this.theme.hemi;
@@ -933,8 +932,7 @@ export class StickmanScene {
     p.vel.set(0, 0, 0);
     p.facing = 1;
     p.act = null;
-    this.director.setBounds(this.roomW);
-    this.director.snap(p.pos.x);
+    this.director.snap(p.pos, p.facing);
     this.wave = 0;
     this.waveDelay = 0.9;
     this.pendingSpawns = 0;
@@ -1042,7 +1040,7 @@ export class StickmanScene {
     this.updateTrail();
     this.theme?.update(realDt, this.realTime);
 
-    this.director.update(realDt, this.player.pos.x, this.player.pos.y);
+    this.director.update(realDt, this.player.pos, this.player.facing);
     this.hudIn -= realDt;
     if (this.hudIn <= 0 && (this.state === "playing" || this.state === "dead")) this.emitHud();
     this.render();
@@ -1091,7 +1089,6 @@ export class StickmanScene {
     const cam = this.director.camera;
     cam.aspect = w / h;
     cam.updateProjectionMatrix();
-    this.director.setBounds(this.roomW);
   }
 
   // ================= 输入 =================

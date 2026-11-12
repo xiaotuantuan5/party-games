@@ -596,10 +596,10 @@ const many = (kind: EnemyKind, n: number): Spawn[] => Array.from({ length: n }, 
 export const MAP_NAME = "古寺夜战";
 
 export const ROOMS: RoomDef[] = [
-  { name: "山门", width: 30, crates: 3, barrels: 1, waves: [many("goblin", 4), [...many("goblin", 3), ...many("archer", 1)]] },
+  { name: "山门", width: 46, crates: 3, barrels: 1, waves: [many("goblin", 4), [...many("goblin", 3), ...many("archer", 1)]] },
   {
     name: "竹林",
-    width: 30,
+    width: 46,
     crates: 2,
     barrels: 2,
     waves: [
@@ -609,7 +609,7 @@ export const ROOMS: RoomDef[] = [
   },
   {
     name: "古寺庭院",
-    width: 30,
+    width: 46,
     crates: 2,
     barrels: 2,
     waves: [
@@ -619,7 +619,7 @@ export const ROOMS: RoomDef[] = [
   },
   {
     name: "藏经楼",
-    width: 30,
+    width: 36,
     crates: 3,
     barrels: 3,
     waves: [
@@ -627,7 +627,7 @@ export const ROOMS: RoomDef[] = [
       [{ kind: "shield", elite: true }, ...many("goblin", 3), ...many("archer", 1)],
     ],
   },
-  { name: "血煞大殿", width: 26, crates: 0, barrels: 3, waves: [], boss: true },
+  { name: "血煞大殿", width: 30, crates: 0, barrels: 3, waves: [], boss: true },
 ];
 
 export const GRADES = ["SSS", "SS", "S", "A", "B", "C", "D"] as const;
