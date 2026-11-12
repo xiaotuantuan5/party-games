@@ -4204,9 +4204,9 @@ export class StickmanScene {
         {
           at: 0.2,
           fn: () => {
-            this.fx.spawn({ geo: FXGEO.ring, color: gold, k: 0.9, pos: [p.pos.x - f * 1.2, 2.6, -1.5], scale: 2.2, scaleTo: 2.5, life: 3.4, opacity: 0.6, opacityTo: 0 });
-            this.fx.spawn({ geo: FXGEO.sphere, color: gold, k: 0.9, additive: false, pos: [p.pos.x - f * 3, 4.6, -2.6], scale: 0.9, life: 3.4, opacity: 0.6, opacityTo: 0.15 });
-            this.fx.spawn({ geo: FXGEO.sphere, color: gold, k: 0.9, additive: false, pos: [p.pos.x - f * 3, 2.4, -2.6], scale: [1.8, 2.6, 1], life: 3.4, opacity: 0.5, opacityTo: 0.12 });
+            this.fx.spawn({ geo: FXGEO.ring, color: gold, k: 0.9, pos: [p.pos.x - f * 1.2, 4.6, -6], scale: 2.2, scaleTo: 2.5, life: 3.4, opacity: 0.4, opacityTo: 0 });
+            this.fx.spawn({ geo: FXGEO.sphere, color: gold, k: 0.9, additive: false, pos: [p.pos.x - f * 3, 7.5, -7], scale: 0.9, life: 3.4, opacity: 0.35, opacityTo: 0.1 });
+            this.fx.spawn({ geo: FXGEO.sphere, color: gold, k: 0.9, additive: false, pos: [p.pos.x - f * 3, 4.6, -7], scale: [1.8, 2.6, 1], life: 3.4, opacity: 0.25, opacityTo: 0.08 });
           },
         },
         { at: 0.3, fn: () => this.sparks.emit(this.tmp.set(p.pos.x, 1.4, p.pos.z), 60, gold, { speed: 6, life: 0.6, up: 3 }) },
@@ -4215,7 +4215,7 @@ export class StickmanScene {
           fn: () => {
             // 金拳从高处落下，身后留下残影
             for (let i = 0; i < 4; i++) {
-              this.fx.spawn({ geo: FXGEO.sphere, color: gold, k: 2.6, pos: [landX, 6.5 + i * 0.6, 0.2], scale: 1.6 - i * 0.2, life: 0.9, opacity: 0.9 - i * 0.2, opacityTo: 0, vel: [0, -6, 0], delay: i * 0.05 });
+              this.fx.spawn({ geo: FXGEO.sphere, color: gold, k: 2.0, pos: [landX, 6.5 + i * 0.6, -1.5], scale: 0.55 - i * 0.05, life: 0.9, opacity: 0.8 - i * 0.2, opacityTo: 0, vel: [0, -6, 0], delay: i * 0.05 });
             }
           },
         },
@@ -4232,7 +4232,6 @@ export class StickmanScene {
             this.sparks.emit(this.tmp.set(landX, 0.4, p.pos.z), 140, gold, { speed: 12, life: 0.9, up: 4, gravity: 10 });
             this.dust(landX, p.pos.z, 30);
             this.director.shake(1.2);
-            this.hooks.onFlash("white");
             sfx.blast();
             vibrate(150);
           },
@@ -4296,7 +4295,7 @@ export class StickmanScene {
         at: 0.2 + i * 0.08,
         fn: () => {
           const a = (i / 7) * Math.PI * 2;
-          this.fx.spawn({ geo: FXGEO.arc, color, k: 2.2, pos: [p.pos.x + Math.cos(a) * 1.8, p.pos.y + 1.6 + Math.sin(a) * 1.2, p.pos.z + 0.2], rot: [0, 0, a], scale: 1.6, life: 2.6, opacity: 0.9, opacityTo: 0.2, spin: [0, 0, 3] });
+          this.fx.spawn({ geo: FXGEO.arc, color, k: 0.9, pos: [p.pos.x + Math.cos(a) * 1.8, p.pos.y + 1.6 + Math.sin(a) * 1.2, p.pos.z - 2.5], rot: [0, 0, a], scale: 1.2, life: 2.6, opacity: 0.5, opacityTo: 0.1, spin: [0, 0, 3], additive: false });
         },
       });
     }
