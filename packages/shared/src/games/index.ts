@@ -1,3 +1,4 @@
+import type { AvalonAction, AvalonView } from "./avalon.js";
 import type { BombCatAction, BombCatView } from "./bombCat.js";
 import type { JengaAction, JengaView } from "./jenga.js";
 import type { LiarsBarAction, LiarsBarView } from "./liarsBar.js";
@@ -6,6 +7,7 @@ import type { UndercoverAction, UndercoverView } from "./undercover.js";
 import type { UnoAction, UnoView } from "./uno.js";
 import type { WerewolfAction, WerewolfView } from "./werewolf.js";
 
+export * from "./avalon.js";
 export * from "./bombCat.js";
 export * from "./jenga.js";
 export * from "./liarsBar.js";
@@ -14,7 +16,7 @@ export * from "./undercover.js";
 export * from "./uno.js";
 export * from "./werewolf.js";
 
-export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf";
+export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf" | "avalon";
 
 export interface GameMeta {
   id: GameId;
@@ -34,6 +36,27 @@ export interface GameMeta {
 }
 
 export const GAMES: Record<GameId, GameMeta> = {
+  avalon: {
+    id: "avalon",
+    name: "阿瓦隆",
+    emoji: "🏰",
+    tagline: "没有人出局，只有人在撒谎",
+    description: "亚瑟的忠臣对抗莫德雷德的爪牙。队长组队、全员投票、出征任务，好人要完成 3 个任务，还得保护好梅林。",
+    minPlayers: 5,
+    maxPlayers: 10,
+    duration: "30~45 分钟",
+    tags: ["推理", "阵营", "全员在场"],
+    rules: [
+      "身份：好人有梅林、派西维尔和忠臣；坏人有刺客、莫甘娜，7 人起加莫德雷德，10 人加奥伯伦。5~6 人 2 坏，7~9 人 3 坏，10 人 4 坏。",
+      "梅林看得到坏人（看不到莫德雷德）；派西维尔看得到梅林和莫甘娜，但分不清谁是谁；坏人互相认识（奥伯伦除外）。",
+      "共 5 个任务，每个任务的出征人数在任务进度条上。队长挑人组队，然后所有人同时投票赞成或反对，过半数赞成才出发，否则换下一位当队长。",
+      "同一个任务连续 5 次组队被否决，坏人直接获胜。",
+      "出征的人暗中交任务牌：好人只能交成功，坏人可以交成功或失败。有 1 张失败任务就失败（7 人及以上第 4 个任务要 2 张失败）。只公布失败张数，不公布是谁。",
+      "3 个任务失败，坏人获胜。3 个任务成功后，坏人亮明身份，由刺客指认一个人：刺中梅林坏人翻盘，否则好人获胜。",
+      "没有人会出局，所有人从头玩到尾。白天随便讨论、带节奏、互相怀疑都可以。",
+    ],
+    color: "#1f4e79",
+  },
   werewolf: {
     id: "werewolf",
     name: "狼人杀",
@@ -174,10 +197,11 @@ export const GAMES: Record<GameId, GameMeta> = {
 };
 
 /** 首页展示顺序 */
-export const GAME_ORDER: GameId[] = ["werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
+export const GAME_ORDER: GameId[] = ["avalon", "werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
 
-export type GameView = NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView;
+export type GameView = AvalonView | NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView;
 export type GameAction =
+  | AvalonAction
   | NumberBombAction
   | UndercoverAction
   | BombCatAction
