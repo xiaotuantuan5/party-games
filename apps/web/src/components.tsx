@@ -69,7 +69,12 @@ export function GameCard({
       style={{ "--c": meta.color } as CSSProperties}
       onClick={onClick}
     >
-      {isNew && <span className="game-card-new">NEW</span>}
+      {(isNew || meta.original) && (
+        <span className="game-card-badges">
+          {meta.original && <span className="game-card-original">原创</span>}
+          {isNew && <span className="game-card-new">NEW</span>}
+        </span>
+      )}
       <span className="game-card-emoji">{meta.emoji}</span>
       <span className="game-card-name">{meta.name}</span>
       <span className="game-card-tagline">{meta.tagline}</span>
@@ -86,7 +91,10 @@ export function GameDetail({ meta }: { meta: GameMeta }) {
       <div className="game-detail-head">
         <span className="game-detail-emoji">{meta.emoji}</span>
         <div>
-          <h2>{meta.name}</h2>
+          <h2>
+            {meta.name}
+            {meta.original && <span className="game-detail-original">原创</span>}
+          </h2>
           <div className="game-detail-meta">
             👥 {meta.minPlayers}~{meta.maxPlayers} 人 · ⏱ {meta.duration}
           </div>

@@ -4,6 +4,7 @@ import { Avatar, AvatarContext, GameCard, GameDetail, Sheet, randomName } from "
 import { Avalon } from "./games/Avalon";
 import { BombCat } from "./games/BombCat";
 import { LiarsBar } from "./games/LiarsBar";
+import { Midway } from "./games/Midway";
 import { NumberBomb } from "./games/NumberBomb";
 import { Undercover } from "./games/Undercover";
 import { Uno } from "./games/Uno";
@@ -21,7 +22,7 @@ const Quest = lazy(() => import("./games/Quest").then((m) => ({ default: m.Quest
 // 单人游戏同样依赖 three.js，点开时才加载
 const SpaceShooter = lazy(() => import("./solo/SpaceShooter").then((m) => ({ default: m.SpaceShooter })));
 
-const NEW_GAMES: GameId[] = ["avalon", "quest", "werewolf", "uno"];
+const NEW_GAMES: GameId[] = ["midway", "avalon", "quest", "werewolf", "uno"];
 
 export function App() {
   const { room, me, connected, notice, clearNotice, actions } = useParty();
@@ -384,6 +385,7 @@ function RoomScreen({ room, me, actions }: GameProps) {
               {room.game.gameId === "uno" && <Uno room={room} me={me} actions={actions} />}
               {room.game.gameId === "werewolf" && <Werewolf room={room} me={me} actions={actions} />}
               {room.game.gameId === "avalon" && <Avalon room={room} me={me} actions={actions} />}
+            {room.game.gameId === "midway" && <Midway room={room} me={me} actions={actions} />}
               {room.game.gameId === "jenga" && (
                 <Suspense fallback={<p className="hint center">正在搭木塔…</p>}>
                   <Jenga room={room} me={me} actions={actions} />
