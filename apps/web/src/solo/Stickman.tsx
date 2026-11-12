@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { SoundToggle } from "../fx";
 import { getBest, saveBest } from "./soloGames";
-import { GRADES, MAP_NAME, ROLE_ORDER, ROLES, SKILLS, STATS, type Card, type Grade, type RoleId } from "./stickmanData";
+import { GRADES, MAPS, MAP_NAME, MAP_ORDER, ROLE_ORDER, ROLES, SKILLS, STATS, type Card, type Grade, type MapId, type RoleId } from "./stickmanData";
 import { StickmanScene, type StickAction, type StickBanner, type StickHud, type StickResult } from "./stickmanScene";
 import "./Stickman.css";
 
@@ -9,6 +9,12 @@ type Phase = "ready" | "playing" | "paused" | "cards" | "dead" | "over";
 
 const GRADE_KEY = "party.solo.stickman.grade";
 const ROLE_KEY = "party.solo.stickman.role";
+const MAP_KEY = "party.solo.stickman.map";
+
+function savedMap(): MapId {
+  const m = localStorage.getItem(MAP_KEY);
+  return MAP_ORDER.includes(m as MapId) ? (m as MapId) : "maple";
+}
 
 function savedRole(): RoleId {
   const r = localStorage.getItem(ROLE_KEY);
@@ -83,6 +89,11 @@ export function Stickman({ onExit }: { onExit: () => void }) {
   const [flash, setFlash] = useState<{ kind: "white" | "red"; id: number } | null>(null);
   const [tint, setTint] = useState<number | null>(null);
   const [role, setRoleState] = useState<RoleId>(savedRole);
+  const [map, setMapState] = useState<MapId>(savedMap);
+  const setMap = (m: MapId) => {
+    setMapState(m);
+    localStorage.setItem(MAP_KEY, m);
+  };
   const setRole = (r: RoleId) => {
     setRoleState(r);
     localStorage.setItem(ROLE_KEY, r);
@@ -212,7 +223,7 @@ export function Stickman({ onExit }: { onExit: () => void }) {
     setHud(null);
     setCards([]);
     setPhase("playing");
-    sceneRef.current?.start(role);
+    sceneRef.current?.start(role, map);
   };
   const resume = () => {
     sceneRef.current?.setPaused(false);
@@ -299,6 +310,24 @@ export function Stickman({ onExit }: { onExit: () => void }) {
               </button>
             ))}
           </div>
+          <div className="sm-roles" role="radiogroup" aria-label="选择场景">
+            {MAP_ORDER.map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={map === id}
+                className={`sm-role ${map === id ? "on" : ""}`}
+                onClick={() => setMap(id)}
+              >
+                <span className="sm-role-icon">{MAPS[id].emoji}</span>
+                <span className="sm-role-name">{MAPS[id].name}</span>
+              </button>
+            ))}
+          </div>
+          <p className="sm-role-desc">
+            {MAPS[map].desc}
+          </p>
           <p className="sm-role-desc">
             {ROLES[role].desc} · 技能：{ROLES[role].start.map((s) => SKILLS[s].name).join("、")} · 觉醒：{ROLES[role].awaken.name}
           </p>

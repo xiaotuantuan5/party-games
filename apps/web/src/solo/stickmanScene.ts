@@ -9,6 +9,7 @@ import {
   BOSS,
   ELEMENT_COLOR,
   ENEMIES,
+  type MapId,
   MAX_SKILL_LEVEL,
   MAX_SLOTS,
   ROOMS,
@@ -25,7 +26,7 @@ import {
   type Spawn,
   type StatId,
 } from "./stickmanData";
-import { buildTheme, type Theme } from "./stickmanTheme";
+import { MAP_STYLES, buildTheme, type Theme } from "./stickmanTheme";
 import { DamageNumbers, FXGEO, FxSystem, Particles, Trail, type NumberStyle } from "./stickmanFx";
 import { BugModel, FIGURE_COLOR, FIGURE_SCALE, P, STANCE, StickRig, glowMat, idlePose, keyed, mixPose, pose, runPose, type Debris, type Model, type Pose } from "./stickmanRig";
 
@@ -534,6 +535,8 @@ export class StickmanScene {
   private swords: FlyingSword[] = [];
 
   private roomIdx = 0;
+  /** 这一局使用的场景配色，开局时选定 */
+  private mapId: MapId = "maple";
   private roomW = 30;
   private wave = 0;
   private waveDelay = 0;
@@ -649,7 +652,8 @@ export class StickmanScene {
 
   // ================= 对外接口 =================
 
-  start(role: RoleId): void {
+  start(role: RoleId, map: MapId): void {
+    this.mapId = map;
     this.setRole(role);
     this.resetRun();
     this.state = "playing";
@@ -660,7 +664,7 @@ export class StickmanScene {
   private setRole(role: RoleId): void {
     this.role = role;
     this.player.rig.dispose();
-    const rig = new StickRig({ color: FIGURE_COLOR, glow: 0.04, scale: FIGURE_SCALE, keepWeapon: true, cape: true, weapon: ROLES[role].weapon });
+    const rig = new StickRig({ color: FIGURE_COLOR, glow: 0.04, scale: FIGURE_SCALE, keepWeapon: true, cape: true, outline: true, weapon: ROLES[role].weapon, gear: ROLES[role].gear });
     this.scene.add(rig.group);
     this.player.rig = rig;
   }
@@ -793,7 +797,7 @@ export class StickmanScene {
   // ================= 场景搭建 =================
 
   private makePlayer(): Player {
-    const rig = new StickRig({ color: FIGURE_COLOR, glow: 0.04, scale: FIGURE_SCALE, keepWeapon: true, cape: true, weapon: ROLES[this.role].weapon });
+    const rig = new StickRig({ color: FIGURE_COLOR, glow: 0.04, scale: FIGURE_SCALE, keepWeapon: true, cape: true, outline: true, weapon: ROLES[this.role].weapon, gear: ROLES[this.role].gear });
     this.scene.add(rig.group);
     const shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
     shadow.rotation.x = -Math.PI / 2;
@@ -830,12 +834,15 @@ export class StickmanScene {
     this.disposeEnv();
     const def = ROOMS[idx]!;
     this.roomW = def.width;
-    this.theme = buildTheme(this.env, idx, def.width, this.doorMat);
+    this.theme = buildTheme(this.env, idx, def.width, this.doorMat, MAP_STYLES[this.mapId]);
     this.scene.background = new THREE.Color(this.theme.fog);
     this.scene.fog = new THREE.Fog(this.theme.fog, this.theme.fogNear, this.theme.fogFar);
     this.hemi.color.set(this.theme.sky);
     this.hemi.groundColor.set(this.theme.ground);
     this.hemi.intensity = this.theme.hemi;
+    // 夜间的月光：偏冷、不太亮
+    this.sun.color.set(0xb8d4ff);
+    this.sun.intensity = 1.1;
   }
 
   private openDoor(): void {

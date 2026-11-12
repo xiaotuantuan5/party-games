@@ -445,11 +445,15 @@ export const SKILLS: Record<SkillId, SkillDef> = {
   },
 };
 
+/** 头饰：用来区分角色的外形（不影响玩法） */
+export type Gear = "band" | "none" | "mask" | "bun";
+
 export interface RoleDef {
   id: RoleId;
   name: string;
   icon: string;
   weapon: "sword" | "spear" | "fist" | "dagger" | "fan";
+  gear: Gear;
   desc: string;
   hp: number;
   /** 攻击力，100 为基准 */
@@ -468,6 +472,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     name: "剑客",
     icon: "⚔️",
     weapon: "sword",
+    gear: "band",
     desc: "均衡的近战，技能多，招式连贯",
     hp: 1200,
     atk: 100,
@@ -482,6 +487,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     name: "枪客",
     icon: "🐉",
     weapon: "spear",
+    gear: "none",
     desc: "攻击距离远，能隔着敌人突刺，枪尖带着青龙虚影",
     hp: 1100,
     atk: 95,
@@ -496,6 +502,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     name: "拳师",
     icon: "👊",
     weapon: "fist",
+    gear: "none",
     desc: "血厚、近身爆发高，能蓄力重拳，还有金钟罩护体",
     hp: 1400,
     atk: 115,
@@ -510,6 +517,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     name: "暗器师",
     icon: "🗡️",
     weapon: "dagger",
+    gear: "mask",
     desc: "远程输出，有隐身和瞬移，血最少，要保持距离",
     hp: 900,
     atk: 90,
@@ -524,6 +532,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     name: "扇舞者",
     icon: "🪭",
     weapon: "fan",
+    gear: "bun",
     desc: "中距离，会拉人、会扇风，墨扇风暴能困住一群敌人",
     hp: 1000,
     atk: 95,
@@ -643,3 +652,12 @@ export function gradeFor(score: number, revived: boolean): Grade {
 }
 
 export const ELEMENT_COLOR: Record<Element, number> = { fire: 0xff6a20, ice: 0x6ad8ff, thunder: 0xb47aff };
+
+/** 可选场景（开局选一个，整局使用同一套配色） */
+export const MAP_ORDER = ["maple", "bamboo", "bloodmoon"] as const;
+export type MapId = (typeof MAP_ORDER)[number];
+export const MAPS: Record<MapId, { name: string; emoji: string; desc: string }> = {
+  maple: { name: "红枫夜雾", emoji: "🍁", desc: "青蓝色的雾，红枫树冠" },
+  bamboo: { name: "月下竹海", emoji: "🎋", desc: "深蓝的雾，白色的月，竹林剪影" },
+  bloodmoon: { name: "血月古寺", emoji: "🌕", desc: "暗紫色的雾，血红色的月" },
+};

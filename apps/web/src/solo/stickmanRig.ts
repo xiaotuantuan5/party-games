@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { Gear } from "./stickmanData";
 
 /**
  * 3D 火柴人：球形的头 + 胶囊体的躯干和四肢，用关节层级连起来。
@@ -147,6 +148,8 @@ export interface RigOptions {
   scale?: number;
   /** 缩放身体时保持武器原来的大小（武器挂在手上，不跟着身体缩小） */
   keepWeapon?: boolean;
+  /** 头饰，区分角色外形 */
+  gear?: Gear;
   weapon: Weapon;
   /** 主角用：给身体加一圈黑色描边 */
   outline?: boolean;
@@ -182,23 +185,44 @@ function capsule(len: number, radius: number, upward = false): THREE.BufferGeome
 }
 
 /** 所有火柴人共用几何体，只有材质各自一份（受击闪白要单独控制） */
+/** 锥形圆柱：顶端在原点，向 -y 延伸，顶端粗、末端细 */
+const taper = (len: number, top: number, bottom: number): THREE.BufferGeometry =>
+  new THREE.CylinderGeometry(top, bottom, len, 6, 1).translate(0, -len / 2, 0);
+
+/** 所有火柴人共用几何体，只有材质各自一份（受击闪白要单独控制） */
 const GEO = {
-  upper: capsule(UPPER_ARM, LIMB),
-  fore: capsule(FOREARM, LIMB),
-  thigh: capsule(THIGH, LIMB * 1.1),
-  shin: capsule(SHIN, LIMB),
-  torso: capsule(TORSO, LIMB * 1.3, true),
-  /** 头是一个细圆环，火柴人的线条风格 */
-  head: new THREE.TorusGeometry(0.12, 0.02, 6, 22),
-  /** 关节的小圆点，让肩、肘、髋、膝的位置一眼能看出来 */
+  upper: taper(UPPER_ARM, LIMB * 1.5, LIMB * 0.9),
+  fore: taper(FOREARM, LIMB * 1.3, LIMB * 0.6),
+  thigh: taper(THIGH, LIMB * 1.7, LIMB * 1.1),
+  shin: taper(SHIN, LIMB * 1.2, LIMB * 0.6),
+  torso: capsule(TORSO, LIMB * 1.6, true),
+  /** 头是一个小墨点 */
+  head: new THREE.SphereGeometry(0.085, 12, 9),
   joint: new THREE.SphereGeometry(0.036, 8, 6),
-  blade: new THREE.BoxGeometry(0.03, 1.15, 0.012).translate(0, -0.72, 0),
-  guard: new THREE.BoxGeometry(0.14, 0.03, 0.04).translate(0, -0.12, 0),
+  // 头饰
+  band: new THREE.BoxGeometry(0.19, 0.03, 0.19).translate(0, 0.035, 0),
+  bandTail: new THREE.BoxGeometry(0.2, 0.025, 0.035).translate(-0.12, 0.02, 0),
+  mask: new THREE.BoxGeometry(0.175, 0.075, 0.175).translate(0.005, 0, 0),
+  eye: new THREE.SphereGeometry(0.014, 6, 4),
+  bun: new THREE.SphereGeometry(0.055, 8, 6).translate(-0.06, 0.08, 0),
+  // 剑：黑色刀身，刃口一道白光，红色护手
+  blade: new THREE.BoxGeometry(0.03, 1.15, 0.01).translate(0, -0.72, 0),
+  bladeEdge: new THREE.BoxGeometry(0.006, 1.12, 0.012).translate(0.014, -0.72, 0),
+  guardRed: new THREE.BoxGeometry(0.16, 0.04, 0.05).translate(0, -0.12, 0),
+  // 枪：长杆，尖端一点白光，杆上挂一缕红缨
   spearShaft: new THREE.CylinderGeometry(0.014, 0.014, 1.9, 5),
   spearTip: new THREE.ConeGeometry(0.045, 0.32, 5).rotateX(Math.PI).translate(0, -0.16, 0),
-  dagger: new THREE.BoxGeometry(0.03, 0.5, 0.01).translate(0, -0.25, 0),
-  knuckle: new THREE.BoxGeometry(0.16, 0.13, 0.13),
+  tassel: new THREE.BoxGeometry(0.035, 0.3, 0.012).translate(0, -0.15, 0),
+  // 拳套：黑色拳面，手腕缠红布
+  knuckle: new THREE.BoxGeometry(0.17, 0.13, 0.13),
+  wrap: new THREE.BoxGeometry(0.18, 0.05, 0.15),
+  // 短刃
+  dagger: new THREE.BoxGeometry(0.022, 0.42, 0.008).translate(0, -0.25, 0),
+  daggerEdge: new THREE.BoxGeometry(0.005, 0.4, 0.01).translate(0.012, -0.25, 0),
+  // 折扇：扇面是黑色扇形，上面一道红色墨线
   fan: new THREE.CircleGeometry(0.42, 16, -0.6, 1.2).rotateZ(-Math.PI / 2),
+  fanInk: new THREE.CircleGeometry(0.3, 16, -0.4, 0.8).rotateZ(-Math.PI / 2),
+  // 棍棒、锤、弓、盾、帽、箭袋、王冠、披风（敌人和 Boss 用）
   club: new THREE.CylinderGeometry(0.11, 0.05, 0.75, 7).translate(0, -0.42, 0),
   hammerHandle: new THREE.CylinderGeometry(0.04, 0.04, 1.1, 6).translate(0, -0.5, 0),
   hammerHead: new THREE.BoxGeometry(0.5, 0.32, 0.32).translate(0, -1.05, 0),
@@ -207,8 +231,8 @@ const GEO = {
   hat: new THREE.ConeGeometry(0.2, 0.42, 8).translate(0, 0.32, 0),
   quiver: new THREE.CylinderGeometry(0.08, 0.08, 0.5, 6),
   crown: new THREE.CylinderGeometry(0.2, 0.17, 0.14, 8, 1, true).translate(0, 0.22, 0),
-  /** 披风：顶边在肩上，底边往下垂，8 段用来做摆动 */
-  cape: new THREE.PlaneGeometry(0.42, 0.95, 1, 8).translate(0, -0.475, 0),
+  /** 披风：12 段的红色飘带，顶边在肩上，越往下越窄 */
+  cape: new THREE.PlaneGeometry(0.22, 1.3, 1, 12).translate(0, -0.65, 0),
 };
 
 /** 把一个材质的颜色值放大，配合辉光后期发光 */
@@ -266,7 +290,8 @@ export class StickRig implements Model {
     });
     this.ownedMats.push(this.mat);
     this.currentEmissive.copy(this.baseEmissive);
-    const outlineMat = opts.outline ? new THREE.MeshBasicMaterial({ color: 0x05060a, side: THREE.BackSide }) : null;
+    // 轮廓：背面模型放大一点，填青色，做出边缘的光晕（比描边便宜）
+    const outlineMat = opts.outline ? new THREE.MeshBasicMaterial({ color: 0x3fa6b4, side: THREE.BackSide }) : null;
     if (outlineMat) this.ownedMats.push(outlineMat);
 
     const limb = (parent: THREE.Object3D, geo: THREE.BufferGeometry) => {
@@ -330,89 +355,88 @@ export class StickRig implements Model {
     // 武器挂在右手（前臂末端）
     this.weapon.position.y = -FOREARM;
     this.elR.add(this.weapon);
-    const metal = new THREE.MeshStandardMaterial({ color: 0x6b5a4a, roughness: 0.7 });
-    this.ownedMats.push(metal);
+    const metal = this.own(new THREE.MeshStandardMaterial({ color: 0x6b5a4a, roughness: 0.7 }));
+    const ink = this.own(new THREE.MeshStandardMaterial({ color: 0x14181c, roughness: 0.6, metalness: 0.2 }));
+    const inkDouble = this.own(new THREE.MeshStandardMaterial({ color: 0x14181c, roughness: 0.6, side: THREE.DoubleSide }));
+    const red = this.own(new THREE.MeshBasicMaterial({ color: new THREE.Color(0xd8303a).multiplyScalar(1.1) }));
+    const edge = this.own(glowMat(0xdff6ff, 1.5));
+    const eyeMat = this.own(glowMat(0x9ff0ff, 2.2));
+    const part = (parent: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Material, pos?: [number, number, number]) => {
+      const m = new THREE.Mesh(geo, mat);
+      if (pos) m.position.set(pos[0], pos[1], pos[2]);
+      parent.add(m);
+      this.limbs.push(m);
+      return m;
+    };
     switch (opts.weapon) {
-      case "sword": {
-        const blade = new THREE.Mesh(GEO.blade, glowMat(0xbfefff, 1.6));
-        this.ownedMats.push(blade.material as THREE.Material);
-        const guard = new THREE.Mesh(GEO.guard, glowMat(0xffd27a, 1.4));
-        this.ownedMats.push(guard.material as THREE.Material);
-        this.weapon.add(blade, guard);
-        this.limbs.push(blade);
+      case "sword":
+        part(this.weapon, GEO.blade, ink);
+        part(this.weapon, GEO.bladeEdge, edge);
+        part(this.weapon, GEO.guardRed, red);
         break;
-      }
       case "club":
-        this.weapon.add(new THREE.Mesh(GEO.club, metal));
+        part(this.weapon, GEO.club, metal);
         this.tipLocal.set(0, -0.8, 0);
         break;
       case "hammer": {
-        const head = new THREE.Mesh(GEO.hammerHead, new THREE.MeshStandardMaterial({ color: 0x3a3a44, metalness: 0.6, roughness: 0.4 }));
-        this.ownedMats.push(head.material as THREE.Material);
-        this.weapon.add(new THREE.Mesh(GEO.hammerHandle, metal), head);
+        part(this.weapon, GEO.hammerHandle, metal);
+        part(this.weapon, GEO.hammerHead, this.own(new THREE.MeshStandardMaterial({ color: 0x3a3a44, metalness: 0.6, roughness: 0.4 })));
         this.tipLocal.set(0, -1.1, 0);
         break;
       }
-      case "bow": {
-        const bow = new THREE.Mesh(GEO.bow, metal);
-        bow.position.y = -FOREARM;
-        this.elL.add(bow);
+      case "bow":
+        part(this.elL, GEO.bow, metal);
         break;
-      }
-      case "spear": {
-        const shaft = new THREE.Mesh(GEO.spearShaft, metal);
-        shaft.position.y = -0.95;
-        const tip = new THREE.Mesh(GEO.spearTip, glowMat(0xdffcff, 1.8));
-        this.ownedMats.push(tip.material as THREE.Material);
-        tip.position.y = -1.9;
-        this.weapon.add(shaft, tip);
+      case "spear":
+        part(this.weapon, GEO.spearShaft, ink, [0, -0.95, 0]);
+        part(this.weapon, GEO.spearTip, edge, [0, -1.9, 0]);
+        part(this.weapon, GEO.tassel, red, [0, -1.25, 0]);
         this.tipLocal.set(0, -2.2, 0);
         this.baseLocal.set(0, -0.3, 0);
         break;
-      }
-      case "dagger": {
-        const blade = new THREE.Mesh(GEO.dagger, glowMat(0xdfe8ff, 1.5));
-        this.ownedMats.push(blade.material as THREE.Material);
-        this.weapon.add(blade);
+      case "dagger":
+        part(this.weapon, GEO.dagger, ink);
+        part(this.weapon, GEO.daggerEdge, edge);
         this.tipLocal.set(0, -0.55, 0);
         break;
-      }
-      case "fist": {
-        const knuckle = new THREE.Mesh(GEO.knuckle, new THREE.MeshStandardMaterial({ color: 0xc9a64a, metalness: 0.7, roughness: 0.35 }));
-        this.ownedMats.push(knuckle.material as THREE.Material);
-        knuckle.position.y = -0.05;
-        this.weapon.add(knuckle);
+      case "fist":
+        part(this.weapon, GEO.knuckle, ink, [0, -0.05, 0]);
+        part(this.weapon, GEO.wrap, red, [0, -0.02, 0]);
         this.tipLocal.set(0, -0.1, 0);
         this.baseLocal.set(0, 0, 0);
         break;
-      }
-      case "fan": {
-        const fan = new THREE.Mesh(GEO.fan, new THREE.MeshBasicMaterial({ color: new THREE.Color(0xfff4e0).multiplyScalar(1.2), side: THREE.DoubleSide }));
-        this.ownedMats.push(fan.material as THREE.Material);
-        fan.position.y = -0.05;
-        this.weapon.add(fan);
+      case "fan":
+        part(this.weapon, GEO.fan, inkDouble, [0, -0.05, 0]);
+        part(this.weapon, GEO.fanInk, red, [0, -0.05, 0.004]);
         this.tipLocal.set(0, -0.42, 0);
         this.baseLocal.set(0, -0.05, 0);
         break;
-      }
       case "none":
         break;
     }
     if (opts.shield) {
-      const shield = new THREE.Mesh(GEO.shield, new THREE.MeshStandardMaterial({ color: 0x5a6470, metalness: 0.6, roughness: 0.35 }));
-      this.ownedMats.push(shield.material as THREE.Material);
+      const shield = new THREE.Mesh(GEO.shield, this.own(new THREE.MeshStandardMaterial({ color: 0x5a6470, metalness: 0.6, roughness: 0.35 })));
       shield.position.set(0.1, -FOREARM * 0.6, -0.08);
       this.elL.add(shield);
     }
+    // 头饰：每个角色不一样，用来区分外形
+    if (opts.gear === "band") {
+      part(head, GEO.band, red);
+      part(head, GEO.bandTail, red);
+    } else if (opts.gear === "mask") {
+      part(head, GEO.mask, ink);
+      part(head, GEO.eye, eyeMat, [0.075, 0.012, 0.035]);
+      part(head, GEO.eye, eyeMat, [0.075, 0.012, -0.035]);
+    } else if (opts.gear === "bun") {
+      part(head, GEO.bun, ink);
+    }
     if (opts.hat) {
-      const hat = new THREE.Mesh(GEO.hat, new THREE.MeshStandardMaterial({ color: 0x7a3a1a, roughness: 0.8 }));
-      this.ownedMats.push(hat.material as THREE.Material);
+      const hat = new THREE.Mesh(GEO.hat, this.own(new THREE.MeshStandardMaterial({ color: 0x7a3a1a, roughness: 0.8 })));
       hat.rotation.z = -0.35;
       head.add(hat);
     }
     if (opts.crown) {
-      const crown = new THREE.Mesh(GEO.crown, glowMat(0xffc83a, 1.6));
-      this.ownedMats.push(crown.material as THREE.Material);
+      const crown = new THREE.Mesh(GEO.crown, this.own(glowMat(0xffc83a, 1.6)));
       head.add(crown);
     }
     if (opts.quiver) {
@@ -422,8 +446,8 @@ export class StickRig implements Model {
       this.spine.add(q);
     }
     if (opts.cape) {
-      const capeMat = new THREE.MeshStandardMaterial({ color: 0x8a1a2a, side: THREE.DoubleSide, roughness: 0.9 });
-      this.ownedMats.push(capeMat);
+      // 披风是红色飘带，几何体每个火柴人单独一份
+      const capeMat = this.own(new THREE.MeshStandardMaterial({ color: 0xc8252c, side: THREE.DoubleSide, roughness: 0.9 }));
       const capeGeo = GEO.cape.clone();
       this.capeGeo = capeGeo;
       this.capeBase = Float32Array.from((capeGeo.attributes.position as THREE.BufferAttribute).array as Float32Array);
@@ -460,17 +484,28 @@ export class StickRig implements Model {
   }
 
   /** 披风随风摆动：站着时轻微飘，跑动时摆得大，越往下摆得越厉害 */
+  /** 把一个材质记下来，dispose 时统一释放 */
+  private own<T extends THREE.Material>(m: T): T {
+    this.ownedMats.push(m);
+    return m;
+  }
+
   private animateCape(p: Pose): void {
     const geo = this.capeGeo;
     const base = this.capeBase;
     if (!geo || !base) return;
     const t = performance.now() / 1000;
-    const amp = 0.035 + 0.09 * Math.min(1, Math.abs(p.hipL) + Math.abs(p.hipR));
+    // 跑动时飘带往身后拖得更长，站着时只轻轻飘
+    const motion = Math.min(1, Math.abs(p.hipL) + Math.abs(p.hipR));
+    const trail = 0.12 + 0.35 * motion;
+    const flutter = 0.03 + 0.08 * motion;
     const pos = geo.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < pos.count; i++) {
       const x = base[i * 3]!;
-      const k = -base[i * 3 + 1]! / 0.95;
-      pos.setZ(i, base[i * 3 + 2]! + Math.sin(t * 7 + k * 5 + x * 3) * amp * k);
+      const y = base[i * 3 + 1]!;
+      const k = -y / 1.3;
+      pos.setX(i, x * (1 - 0.45 * k));
+      pos.setZ(i, -trail * k * k + Math.sin(t * 8 - k * 6 + x * 2) * flutter * k);
     }
     pos.needsUpdate = true;
   }
