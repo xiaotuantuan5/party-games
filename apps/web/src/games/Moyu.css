@@ -1,0 +1,420 @@
+.my-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: -8px;
+  padding: 8px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #e6f4f1 0%, #fff 40%);
+  transition: box-shadow 0.3s;
+}
+
+/* 老板盯上自己时整块边缘泛红 */
+.my-root.alarm {
+  box-shadow: inset 0 0 0 3px rgba(220, 38, 38, 0.65);
+  animation: my-alarm 1s ease-in-out infinite;
+}
+
+@keyframes my-alarm {
+  50% {
+    box-shadow: inset 0 0 0 3px rgba(220, 38, 38, 0.15);
+  }
+}
+
+.my-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.my-head h2 {
+  flex: 1;
+}
+
+.my-clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: bold;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #0f766e;
+  color: #fff;
+}
+
+.my-time {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ---------- 进度条 ---------- */
+.my-bar {
+  position: relative;
+  display: block;
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.my-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: #22c55e;
+  transition: width 0.9s linear;
+}
+
+.my-bar-time .my-bar-fill {
+  background: linear-gradient(90deg, #38bdf8, #f59e0b);
+}
+
+.my-bar-boss {
+  height: 10px;
+}
+
+.my-bar-boss .my-bar-fill {
+  background: #dc2626;
+}
+
+.my-bar-door.warn .my-bar-fill {
+  background: #f59e0b;
+}
+
+.my-bar-door.danger .my-bar-fill {
+  background: #dc2626;
+}
+
+/* ---------- 老板 ---------- */
+.my-boss {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #1f2937;
+  color: #f9fafb;
+}
+
+.my-boss .hint {
+  color: #9ca3af;
+}
+
+.my-boss-face {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.my-boss.attacking .my-boss-face {
+  animation: my-knock 0.5s ease-in-out infinite;
+}
+
+.my-boss.walking .my-boss-face {
+  animation: my-walk 0.6s ease-in-out infinite;
+}
+
+.my-boss-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.my-boss-title {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.my-boss-status {
+  font-size: 13px;
+}
+
+@keyframes my-knock {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  40% {
+    transform: rotate(-14deg) translateX(-2px);
+  }
+  60% {
+    transform: rotate(8deg) translateX(2px);
+  }
+}
+
+@keyframes my-walk {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/* ---------- 办公区 ---------- */
+.my-office {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.my-desk {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  border-radius: 10px;
+  background: #fff;
+  border: 2px solid #d1d5db;
+  border-bottom-width: 5px;
+  font-size: 13px;
+}
+
+.my-desk.mine {
+  border-color: #0f766e;
+  background: #f0fdfa;
+}
+
+.my-desk.targeted {
+  border-color: #f59e0b;
+}
+
+.my-desk.knocking {
+  border-color: #dc2626;
+  animation: my-shake 0.4s linear infinite;
+}
+
+.my-desk.out {
+  opacity: 0.55;
+  background: #f3f4f6;
+}
+
+.my-desk.won {
+  border-color: #16a34a;
+}
+
+@keyframes my-shake {
+  25% {
+    transform: translateX(-1.5px);
+  }
+  75% {
+    transform: translateX(1.5px);
+  }
+}
+
+.my-desk-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.my-desk-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.my-desk-door,
+.my-desk-gear {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.my-desk-hp {
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: #555;
+}
+
+.my-desk-coins {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: #555;
+}
+
+.my-desk-out {
+  padding: 8px 0;
+  text-align: center;
+  color: #6b7280;
+}
+
+.my-boss-pin {
+  position: absolute;
+  top: -10px;
+  right: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  background: #f59e0b;
+  white-space: nowrap;
+}
+
+.my-boss-pin.attacking {
+  background: #dc2626;
+}
+
+button.my-help {
+  padding: 4px 6px;
+  font-size: 12px;
+  background: #0ea5e9;
+}
+
+/* ---------- 我的工位 ---------- */
+.my-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 0 0 2px #0f766e;
+}
+
+.my-panel.danger {
+  box-shadow: 0 0 0 2px #dc2626;
+}
+
+.my-wallet {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.my-coins {
+  font-size: 24px;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+  color: #0f766e;
+  animation: my-bump 0.3s ease-out;
+}
+
+@keyframes my-bump {
+  from {
+    transform: scale(1.08);
+  }
+}
+
+.my-upgrades {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+button.my-upgrade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  background: #0f766e;
+  line-height: 1.2;
+}
+
+button.my-upgrade.short:disabled {
+  opacity: 0.45;
+}
+
+button.my-upgrade.maxed {
+  background: #6b7280;
+}
+
+.my-upgrade-icon {
+  font-size: 22px;
+}
+
+.my-upgrade-name {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.my-upgrade-desc {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.my-upgrade-cost {
+  margin-top: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.my-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.my-actions small {
+  font-weight: normal;
+  opacity: 0.85;
+}
+
+button.my-coffee {
+  background: #92400e;
+}
+
+.my-spectate {
+  margin: 0;
+  padding: 10px;
+  border-radius: 10px;
+  text-align: center;
+  background: #f3f4f6;
+}
+
+/* ---------- 结算 ---------- */
+.my-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  text-align: center;
+  background: #fef2f2;
+}
+
+.my-result.won {
+  background: #f0fdf4;
+}
+
+.my-result p {
+  margin: 0;
+}
+
+.my-stats {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.my-stats th,
+.my-stats td {
+  padding: 4px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.my-stats td:first-child {
+  text-align: left;
+}
+
+.my-stats tr.me {
+  font-weight: bold;
+}
+
+.my-log-time {
+  font-variant-numeric: tabular-nums;
+  color: #0f766e;
+}

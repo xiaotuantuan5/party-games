@@ -2,6 +2,7 @@ import type { AvalonAction, AvalonView } from "./avalon.js";
 import type { BombCatAction, BombCatView } from "./bombCat.js";
 import type { JengaAction, JengaView } from "./jenga.js";
 import type { MidwayAction, MidwayView } from "./midway.js";
+import type { MoyuAction, MoyuView } from "./moyu.js";
 import type { LiarsBarAction, LiarsBarView } from "./liarsBar.js";
 import type { NumberBombAction, NumberBombView } from "./numberBomb.js";
 import type { QuestAction, QuestView } from "./quest.js";
@@ -14,13 +15,14 @@ export * from "./bombCat.js";
 export * from "./jenga.js";
 export * from "./liarsBar.js";
 export * from "./midway.js";
+export * from "./moyu.js";
 export * from "./numberBomb.js";
 export * from "./quest.js";
 export * from "./undercover.js";
 export * from "./uno.js";
 export * from "./werewolf.js";
 
-export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf" | "avalon" | "quest" | "midway";
+export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf" | "avalon" | "quest" | "midway" | "moyu";
 
 export interface GameMeta {
   id: GameId;
@@ -42,6 +44,29 @@ export interface GameMeta {
 }
 
 export const GAMES: Record<GameId, GameMeta> = {
+  moyu: {
+    id: "moyu",
+    name: "工位摸鱼",
+    emoji: "🐟",
+    tagline: "老板来查岗了！快升级隔板",
+    description:
+      "实时合作生存，玩法参考《猛鬼宿舍》。每人一个工位，坐着就能摸鱼赚钱，用来升级隔板、摸鱼装备和桌面炮台。老板开完早会就开始巡查敲隔板，撑到 18:00 下班就赢。",
+    minPlayers: 5,
+    maxPlayers: 8,
+    duration: "约 6 分钟",
+    tags: ["实时", "合作", "生存经营"],
+    rules: [
+      "每人分到一个工位。从 09:00 开始，每秒自动摸到 🐟 摸鱼币，装备越好摸得越多。整局约 5 分半，到 18:00 下班。",
+      "前 30 秒老板在开早会，抓紧升级。之后老板会挑一个工位走过去（要走 4 秒，所有人都能看到他去哪），站在隔板前一直敲。",
+      "隔板被敲烂，这个工位的人就被抓了，只能围观。老板接着找下一家；在一家敲了 30 秒还敲不开，也会换人。",
+      "🪵 隔板：升级加耐久。💻 摸鱼装备：升级加收入。📎 桌面炮台：老板在你工位前时每秒打他，伤害随等级提升。",
+      "🔧 修隔板：花钱恢复 30% 耐久，每人每 10 秒能修一次，可以帮同事修。",
+      "☕ 递咖啡：老板在敲隔板时，任何人花 50 币请他喝咖啡，他会发呆 5 秒不敲（炮台照打），全场共用 30 秒冷却。",
+      "老板每 40 秒升一级，越来越凶、血越来越厚。血量低于 30% 会回办公室喝茶回满血，一局最多回去 2 次，之后就硬刚到底。",
+      "撑到 18:00 下班，或者用炮台把老板打到 0 血气走他，没被抓的人都赢；所有人都被抓，老板赢。",
+    ],
+    color: "#0f766e",
+  },
   midway: {
     id: "midway",
     name: "不上不下",
@@ -248,9 +273,9 @@ export const GAMES: Record<GameId, GameMeta> = {
 };
 
 /** 首页展示顺序 */
-export const GAME_ORDER: GameId[] = ["midway", "avalon", "quest", "werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
+export const GAME_ORDER: GameId[] = ["moyu", "midway", "avalon", "quest", "werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
 
-export type GameView = AvalonView | NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView | QuestView | MidwayView;
+export type GameView = AvalonView | NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView | QuestView | MidwayView | MoyuView;
 export type GameAction =
   | AvalonAction
   | NumberBombAction
@@ -261,4 +286,5 @@ export type GameAction =
   | JengaAction
   | WerewolfAction
   | QuestAction
-  | MidwayAction;
+  | MidwayAction
+  | MoyuAction;

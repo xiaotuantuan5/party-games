@@ -11,7 +11,7 @@ import {
   type RoomView,
 } from "@party/shared";
 import { ENGINES } from "./games/index.js";
-import { GameError, type AnyGameEngine } from "./games/types.js";
+import { GameError, TICK_MS, type AnyGameEngine } from "./games/types.js";
 
 export interface Avatar {
   mime: string;
@@ -34,6 +34,8 @@ interface Room {
   /** 每开一局 +1，前端据此在“再来一局”时重置游戏界面 */
   gameNo: number;
   cleanupTimer: NodeJS.Timeout | null;
+  /** 随时间推进的游戏用的定时器，没有就是 null */
+  ticker: NodeJS.Timeout | null;
 }
 
 /** 房间所有人都断线后保留多久（便于刷新页面、切后台后重连） */
@@ -99,6 +101,7 @@ export class RoomManager {
       game: null,
       gameNo: 0,
       cleanupTimer: null,
+      ticker: null,
     };
     this.rooms.set(code, room);
     this.onChange(room);
@@ -151,7 +154,7 @@ export class RoomManager {
     this.ensureConnectedHost(room);
 
     if (room.players.every((p) => !p.connected)) {
-      room.cleanupTimer = setTimeout(() => this.rooms.delete(room.code), EMPTY_ROOM_TTL_MS);
+      room.cleanupTimer = setTimeout(() => this.delete(room), EMPTY_ROOM_TTL_MS);
     }
     this.onChange(room);
   }
@@ -164,7 +167,7 @@ export class RoomManager {
     room.players = room.players.filter((p) => p.id !== playerId);
     if (room.players.length === 0) {
       if (room.cleanupTimer) clearTimeout(room.cleanupTimer);
-      this.rooms.delete(room.code);
+      this.delete(room);
       return;
     }
 
@@ -193,6 +196,7 @@ export class RoomManager {
     if (n > engine.meta.maxPlayers) throw new GameError(`${engine.meta.name}最多 ${engine.meta.maxPlayers} 人`);
     room.game = { engine, state: engine.setup(room.players.map(({ id, name, connected }) => ({ id, name, connected }))) };
     room.gameNo++;
+    this.ensureTicker(room);
     this.onChange(room);
   }
 
@@ -268,6 +272,36 @@ export class RoomManager {
     if (host?.connected) return;
     const next = room.players.find((p) => p.connected);
     if (next) room.hostId = next.id;
+  }
+
+  private delete(room: Room): void {
+    this.stopTicker(room);
+    this.rooms.delete(room.code);
+  }
+
+  /**
+   * 当前游戏需要按时间推进时启动定时器。定时器每次都读取 room.game，
+   * 所以“再来一局”可以沿用同一个定时器；回到大厅或换成不需要 tick 的游戏时自动停掉。
+   */
+  private ensureTicker(room: Room): void {
+    if (room.ticker || !room.game?.engine.tick) return;
+    room.ticker = setInterval(() => {
+      const game = room.game;
+      if (!game?.engine.tick || this.rooms.get(room.code) !== room) {
+        this.stopTicker(room);
+        return;
+      }
+      try {
+        if (game.engine.tick(game.state)) this.onChange(room);
+      } catch (err) {
+        console.error(err);
+      }
+    }, TICK_MS);
+  }
+
+  private stopTicker(room: Room): void {
+    if (room.ticker) clearInterval(room.ticker);
+    room.ticker = null;
   }
 
   private newCode(): string {

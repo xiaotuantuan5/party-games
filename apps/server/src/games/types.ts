@@ -21,7 +21,15 @@ export interface GameEngine<S, A extends GameAction = GameAction, V extends Game
    * relay 是校验过的数据，转发给其他人；changed 表示离散状态变了，需要给所有人推送一次完整视图。
    */
   move?(state: S, playerId: string, data: unknown): { relay: QuestMove; changed: boolean } | null;
+  /**
+   * 可选：随时间推进的游戏（比如工位摸鱼）。房间每 TICK_MS 调用一次，
+   * 返回 true 表示状态变了，需要给所有人推送视图。
+   */
+  tick?(state: S): boolean;
 }
+
+/** 有 tick 的游戏多久结算一次 */
+export const TICK_MS = 1000;
 
 // 房间层不关心具体游戏的状态类型
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
