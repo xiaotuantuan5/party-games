@@ -25,6 +25,7 @@ const Quest = lazy(() => import("./games/Quest").then((m) => ({ default: m.Quest
 
 // 单人游戏同样依赖 three.js，点开时才加载
 const SpaceShooter = lazy(() => import("./solo/SpaceShooter").then((m) => ({ default: m.SpaceShooter })));
+const Stickman = lazy(() => import("./solo/Stickman").then((m) => ({ default: m.Stickman })));
 
 const NEW_GAMES: GameId[] = ["icecool", "catapult", "moyu", "midway", "avalon", "quest"];
 
@@ -36,6 +37,7 @@ export function App() {
     return (
       <Suspense fallback={<div className="solo-loading">🚀 正在加载…</div>}>
         {solo === "spaceShooter" && <SpaceShooter onExit={() => setSolo(null)} />}
+        {solo === "stickman" && <Stickman onExit={() => setSolo(null)} />}
       </Suspense>
     );
   }

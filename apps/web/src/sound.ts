@@ -329,6 +329,35 @@ export const sfx = {
   fall() {
     tone(700, 0.6, { type: "triangle", slideTo: 120, gain: 0.14 });
   },
+  /** 火柴人刷图：挥剑破风 */
+  swing(heavy = false) {
+    noise(heavy ? 0.22 : 0.12, { filter: "bandpass", from: heavy ? 900 : 1800, to: heavy ? 3500 : 5200, gain: heavy ? 0.2 : 0.11 });
+  },
+  /** 火柴人刷图：砍中 */
+  slashHit(heavy = false) {
+    noise(0.08, { filter: "lowpass", from: 3200, to: 300, gain: heavy ? 0.38 : 0.22 });
+    tone(heavy ? 140 : 210, 0.1, { type: "square", slideTo: 60, gain: heavy ? 0.12 : 0.06 });
+  },
+  /** 火柴人刷图：爆炸 */
+  blast() {
+    noise(0.5, { filter: "lowpass", from: 2600, to: 80, gain: 0.45 });
+    tone(80, 0.4, { slideTo: 35, gain: 0.35 });
+  },
+  /** 火柴人刷图：雷电 */
+  zap() {
+    for (let i = 0; i < 4; i++) noise(0.05, { filter: "highpass", from: 6000, to: 2000, gain: 0.2, delay: i * 0.04 });
+    tone(1200, 0.25, { type: "sawtooth", slideTo: 200, gain: 0.06 });
+  },
+  /** 火柴人刷图：结冰 */
+  freeze() {
+    [1568, 2093, 2637].forEach((f, i) => tone(f, 0.3, { gain: 0.08, delay: i * 0.04 }));
+    noise(0.4, { filter: "highpass", from: 8000, to: 3000, gain: 0.12 });
+  },
+  /** 火柴人刷图：觉醒 */
+  awaken() {
+    tone(110, 1.2, { type: "sawtooth", slideTo: 440, gain: 0.08 });
+    [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.5, { type: "triangle", gain: 0.1, delay: 0.2 + i * 0.08 }));
+  },
   win() {
     const d = 0.8; // 先让爆炸声播完
     [523, 659, 784].forEach((f, i) => tone(f, 0.18, { type: "triangle", gain: 0.18, delay: d + i * 0.14 }));
