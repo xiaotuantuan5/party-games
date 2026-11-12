@@ -99,9 +99,28 @@ export function runPose(phase: number, base: Pose = STANCE): Pose {
   );
 }
 
+/**
+ * 待机：身体站直，双手自然下垂，右手握剑，剑尖朝下贴着身侧。
+ * 战斗动作仍然以 STANCE 为基准，所以这里只改待机，不影响出招。
+ */
+export const IDLE: Pose = pose({
+  rootY: 0,
+  lean: 0.03,
+  neck: 0,
+  shL: -0.08,
+  elL: 0.22,
+  shR: 0.1,
+  elR: 0.15,
+  wpn: -0.25,
+  hipL: 0.02,
+  knL: 0.02,
+  hipR: -0.02,
+  knR: 0.04,
+});
+
 export function idlePose(t: number): Pose {
-  const b = Math.sin(t * 2.4) * 0.03;
-  return pose({ rootY: STANCE.rootY + b, shL: STANCE.shL + b, shR: STANCE.shR - b });
+  const b = Math.sin(t * 2.4) * 0.015;
+  return pose({ rootY: IDLE.rootY + b, shL: IDLE.shL + b, shR: IDLE.shR - b }, IDLE);
 }
 
 /** 常用姿势 */
@@ -188,7 +207,8 @@ const GEO = {
   hat: new THREE.ConeGeometry(0.2, 0.42, 8).translate(0, 0.32, 0),
   quiver: new THREE.CylinderGeometry(0.08, 0.08, 0.5, 6),
   crown: new THREE.CylinderGeometry(0.2, 0.17, 0.14, 8, 1, true).translate(0, 0.22, 0),
-  cape: new THREE.PlaneGeometry(0.5, 0.95).translate(0, -0.45, 0),
+  /** 披风：顶边在肩上，底边往下垂，8 段用来做摆动 */
+  cape: new THREE.PlaneGeometry(0.42, 0.95, 1, 8).translate(0, -0.475, 0),
 };
 
 /** 把一个材质的颜色值放大，配合辉光后期发光 */
@@ -221,6 +241,9 @@ export class StickRig implements Model {
   private knR = new THREE.Group();
   private weapon = new THREE.Group();
   private cape: THREE.Mesh | null = null;
+  /** 披风自己的几何体（每个火柴人一份），摆动时改顶点，不能和别人共用 */
+  private capeGeo: THREE.PlaneGeometry | null = null;
+  private capeBase: Float32Array | null = null;
   readonly mat: THREE.MeshStandardMaterial;
   private baseColor: THREE.Color;
   private baseEmissive: THREE.Color;
@@ -401,7 +424,10 @@ export class StickRig implements Model {
     if (opts.cape) {
       const capeMat = new THREE.MeshStandardMaterial({ color: 0x8a1a2a, side: THREE.DoubleSide, roughness: 0.9 });
       this.ownedMats.push(capeMat);
-      this.cape = new THREE.Mesh(GEO.cape, capeMat);
+      const capeGeo = GEO.cape.clone();
+      this.capeGeo = capeGeo;
+      this.capeBase = Float32Array.from((capeGeo.attributes.position as THREE.BufferAttribute).array as Float32Array);
+      this.cape = new THREE.Mesh(capeGeo, capeMat);
       this.cape.position.set(-0.12, 0, 0);
       this.cape.rotation.y = Math.PI / 2;
       chest.add(this.cape);
@@ -427,7 +453,26 @@ export class StickRig implements Model {
     this.hipR.rotation.z = p.hipR;
     this.knR.rotation.z = p.knR;
     this.weapon.rotation.z = p.wpn;
-    if (this.cape) this.cape.rotation.x = 0.15 + Math.max(0, p.lean) * 0.6;
+    if (this.cape) {
+      this.cape.rotation.x = 0.15 + Math.max(0, p.lean) * 0.6;
+      this.animateCape(p);
+    }
+  }
+
+  /** 披风随风摆动：站着时轻微飘，跑动时摆得大，越往下摆得越厉害 */
+  private animateCape(p: Pose): void {
+    const geo = this.capeGeo;
+    const base = this.capeBase;
+    if (!geo || !base) return;
+    const t = performance.now() / 1000;
+    const amp = 0.035 + 0.09 * Math.min(1, Math.abs(p.hipL) + Math.abs(p.hipR));
+    const pos = geo.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < pos.count; i++) {
+      const x = base[i * 3]!;
+      const k = -base[i * 3 + 1]! / 0.95;
+      pos.setZ(i, base[i * 3 + 2]! + Math.sin(t * 7 + k * 5 + x * 3) * amp * k);
+    }
+    pos.needsUpdate = true;
   }
 
   /** 剑尖和剑根的世界坐标 */
@@ -504,6 +549,7 @@ export class StickRig implements Model {
   dispose(): void {
     this.group.removeFromParent();
     for (const m of this.ownedMats) m.dispose();
+    this.capeGeo?.dispose();
   }
 }
 

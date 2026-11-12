@@ -660,7 +660,7 @@ export class StickmanScene {
   private setRole(role: RoleId): void {
     this.role = role;
     this.player.rig.dispose();
-    const rig = new StickRig({ color: FIGURE_COLOR, glow: 0.04, scale: FIGURE_SCALE, keepWeapon: true, weapon: ROLES[role].weapon });
+    const rig = new StickRig({ color: FIGURE_COLOR, glow: 0.04, scale: FIGURE_SCALE, keepWeapon: true, cape: true, weapon: ROLES[role].weapon });
     this.scene.add(rig.group);
     this.player.rig = rig;
   }
@@ -793,7 +793,7 @@ export class StickmanScene {
   // ================= 场景搭建 =================
 
   private makePlayer(): Player {
-    const rig = new StickRig({ color: FIGURE_COLOR, glow: 0.04, scale: FIGURE_SCALE, keepWeapon: true, weapon: ROLES[this.role].weapon });
+    const rig = new StickRig({ color: FIGURE_COLOR, glow: 0.04, scale: FIGURE_SCALE, keepWeapon: true, cape: true, weapon: ROLES[this.role].weapon });
     this.scene.add(rig.group);
     const shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
     shadow.rotation.x = -Math.PI / 2;
