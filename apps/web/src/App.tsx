@@ -17,13 +17,16 @@ import { useRun, type GameProps } from "./ui";
 
 // 3D 层层叠依赖 three.js 和物理引擎，体积较大，进入游戏时才加载
 const Jenga = lazy(() => import("./games/Jenga").then((m) => ({ default: m.Jenga })));
+// 冰企鹅、投石大战同样是 3D（投石大战还带物理引擎），进入游戏时才加载
+const Icecool = lazy(() => import("./games/Icecool").then((m) => ({ default: m.Icecool })));
+const Catapult = lazy(() => import("./games/Catapult").then((m) => ({ default: m.Catapult })));
 // 秘境闯关同样是 3D，进入游戏时才加载
 const Quest = lazy(() => import("./games/Quest").then((m) => ({ default: m.Quest })));
 
 // 单人游戏同样依赖 three.js，点开时才加载
 const SpaceShooter = lazy(() => import("./solo/SpaceShooter").then((m) => ({ default: m.SpaceShooter })));
 
-const NEW_GAMES: GameId[] = ["moyu", "midway", "avalon", "quest", "werewolf", "uno"];
+const NEW_GAMES: GameId[] = ["icecool", "catapult", "moyu", "midway", "avalon", "quest"];
 
 export function App() {
   const { room, me, connected, notice, clearNotice, actions } = useParty();
@@ -388,6 +391,16 @@ function RoomScreen({ room, me, actions }: GameProps) {
               {room.game.gameId === "avalon" && <Avalon room={room} me={me} actions={actions} />}
               {room.game.gameId === "midway" && <Midway room={room} me={me} actions={actions} />}
               {room.game.gameId === "moyu" && <Moyu room={room} me={me} actions={actions} />}
+              {room.game.gameId === "icecool" && (
+                <Suspense fallback={<p className="hint center">正在铺冰面…</p>}>
+                  <Icecool room={room} me={me} actions={actions} />
+                </Suspense>
+              )}
+              {room.game.gameId === "catapult" && (
+                <Suspense fallback={<p className="hint center">正在运石头…</p>}>
+                  <Catapult room={room} me={me} actions={actions} />
+                </Suspense>
+              )}
               {room.game.gameId === "jenga" && (
                 <Suspense fallback={<p className="hint center">正在搭木塔…</p>}>
                   <Jenga room={room} me={me} actions={actions} />

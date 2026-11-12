@@ -1,0 +1,211 @@
+.ic-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ic-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ic-head h2 {
+  flex: 1;
+}
+
+.ic-round {
+  font-size: 13px;
+  color: #1f6fa8;
+  background: #e3f2fb;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.ic-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ic-players li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef6fb;
+  font-size: 14px;
+}
+
+.ic-players li.current {
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--pc);
+}
+
+.ic-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--pc);
+  flex: none;
+}
+
+.ic-fish {
+  font-size: 11px;
+  letter-spacing: -2px;
+}
+
+.ic-fish span {
+  filter: grayscale(1);
+  opacity: 0.35;
+}
+
+.ic-fish span.got {
+  filter: none;
+  opacity: 1;
+}
+
+.ic-score {
+  margin-left: 2px;
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #1f6fa8;
+  color: #fff;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* 3D 画布：冰蓝色的背景 */
+.ic-stage {
+  position: relative;
+  height: min(62vh, 560px);
+  min-height: 320px;
+  margin: 0 -8px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 30%, #f4fbff 0%, #bfe3f7 55%, #5f9fc8 100%);
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.2);
+  transition: box-shadow 0.3s;
+}
+
+.ic-stage.my-turn {
+  box-shadow:
+    inset 0 0 0 3px #3b9fd8,
+    inset 0 0 30px rgba(0, 0, 0, 0.2);
+}
+
+.ic-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ic-mine {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 2px solid var(--pc);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.ic-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: #fff;
+}
+
+.ic-status {
+  text-align: center;
+}
+
+.ic-end-text {
+  font-size: 22px;
+}
+
+.ic-spin {
+  display: flex;
+  gap: 6px;
+}
+
+.ic-spin button {
+  flex: 1;
+  background: #eef6fb;
+  color: #1f6fa8;
+  font-size: 15px;
+  padding: 8px 4px;
+}
+
+.ic-spin button.active {
+  background: #3b9fd8;
+  color: #fff;
+  box-shadow: 0 2px 0 #1f6fa8;
+}
+
+.ic-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #eef6fb;
+  animation: ic-rise 0.25s ease-out;
+}
+
+.ic-summary-title {
+  font-weight: bold;
+  text-align: center;
+}
+
+.ic-summary ol {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.ic-summary li {
+  display: list-item;
+}
+
+.ic-summary li .ic-dot {
+  margin-right: 4px;
+}
+
+.ic-summary li.winner {
+  font-weight: bold;
+  color: #1f6fa8;
+}
+
+.ic-summary small {
+  color: #667;
+}
+
+.ic-next {
+  background: #3b9fd8;
+  font-weight: bold;
+  box-shadow: 0 3px 0 #1f6fa8;
+}
+
+@keyframes ic-rise {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}

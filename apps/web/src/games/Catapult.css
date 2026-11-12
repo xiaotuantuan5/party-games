@@ -1,0 +1,299 @@
+.cf-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cf-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cf-head h2 {
+  flex: 1;
+}
+
+.cf-phase {
+  font-size: 13px;
+  color: #6b4f24;
+  background: #f5ead6;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.cf-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cf-players li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f6f1e7;
+  font-size: 14px;
+}
+
+.cf-players li.current {
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--pc);
+}
+
+.cf-players li.out {
+  opacity: 0.5;
+}
+
+.cf-players small {
+  color: #8a7a5c;
+}
+
+.cf-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--pc);
+}
+
+.cf-alive {
+  font-size: 12px;
+  letter-spacing: -2px;
+}
+
+/* 3D 画布：蓝天到草地 */
+.cf-stage {
+  position: relative;
+  height: min(56vh, 520px);
+  min-height: 300px;
+  margin: 0 -8px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: linear-gradient(#8fd3ff 0%, #d7f0ff 55%, #a8d08d 100%);
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 0.3s;
+}
+
+.cf-stage.building {
+  height: min(38vh, 340px);
+  min-height: 220px;
+}
+
+.cf-stage.my-turn {
+  box-shadow:
+    inset 0 0 0 3px #8d6e3f,
+    inset 0 0 30px rgba(0, 0, 0, 0.18);
+}
+
+.cf-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.cf-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: #333;
+}
+
+.cf-status {
+  text-align: center;
+}
+
+.cf-end-text {
+  font-size: 22px;
+}
+
+/* ---------- 搭城堡 ---------- */
+.cf-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cf-builder.locked .cf-grid {
+  opacity: 0.6;
+}
+
+.cf-tools,
+.cf-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cf-tools button {
+  flex: 1;
+  background: #f6f1e7;
+  color: #6b4f24;
+  padding: 8px 4px;
+  font-size: 15px;
+}
+
+.cf-tools button.active {
+  background: #8d6e3f;
+  color: #fff;
+  box-shadow: 0 2px 0 #5d4626;
+}
+
+.cf-presets button {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 14px;
+}
+
+.cf-front {
+  text-align: center;
+  font-size: 12px;
+  color: #8a7a5c;
+}
+
+.cf-grid {
+  display: grid;
+  gap: 5px;
+}
+
+.cf-cell {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border-radius: 8px;
+  background: #e9dcc3;
+  color: #333;
+  overflow: hidden;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.08);
+}
+
+.cf-cell:disabled {
+  opacity: 1;
+}
+
+.cf-stack {
+  position: absolute;
+  inset: auto 12% 8% 12%;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+
+.cf-brick {
+  height: 9px;
+  border-radius: 2px;
+  background: linear-gradient(#b9b2a3, #9a9283);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.cf-soldier {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.cf-h {
+  position: absolute;
+  right: 4px;
+  top: 2px;
+  font-size: 11px;
+  color: #6b4f24;
+}
+
+.cf-counts {
+  text-align: center;
+  font-size: 14px;
+  color: #6b4f24;
+}
+
+/* ---------- 瞄准 ---------- */
+.cf-aim {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f6f1e7;
+  animation: cf-rise 0.25s ease-out;
+}
+
+.cf-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #6b4f24;
+}
+
+.cf-slider-label {
+  display: flex;
+  justify-content: space-between;
+}
+
+.cf-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cf-slider input[type="range"] {
+  flex: 1;
+  padding: 0;
+  border: none;
+  accent-color: #8d6e3f;
+}
+
+.cf-nudge {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  background: #e9dcc3;
+  color: #6b4f24;
+  font-size: 20px;
+  touch-action: manipulation;
+}
+
+.cf-fire {
+  background: #c0392b;
+  font-weight: bold;
+  font-size: 18px;
+  padding: 12px;
+  box-shadow: 0 3px 0 #8e2a20;
+}
+
+.cf-fire:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #8e2a20;
+}
+
+.cf-result {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cf-result li.winner {
+  color: #8d6e3f;
+  font-weight: bold;
+}
+
+@keyframes cf-rise {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}

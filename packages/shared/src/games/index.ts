@@ -1,5 +1,7 @@
 import type { AvalonAction, AvalonView } from "./avalon.js";
 import type { BombCatAction, BombCatView } from "./bombCat.js";
+import type { CatapultAction, CatapultView } from "./catapult.js";
+import type { IcecoolAction, IcecoolView } from "./icecool.js";
 import type { JengaAction, JengaView } from "./jenga.js";
 import type { MidwayAction, MidwayView } from "./midway.js";
 import type { MoyuAction, MoyuView } from "./moyu.js";
@@ -12,6 +14,8 @@ import type { WerewolfAction, WerewolfView } from "./werewolf.js";
 
 export * from "./avalon.js";
 export * from "./bombCat.js";
+export * from "./catapult.js";
+export * from "./icecool.js";
 export * from "./jenga.js";
 export * from "./liarsBar.js";
 export * from "./midway.js";
@@ -22,7 +26,7 @@ export * from "./undercover.js";
 export * from "./uno.js";
 export * from "./werewolf.js";
 
-export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf" | "avalon" | "quest" | "midway" | "moyu";
+export type GameId = "numberBomb" | "undercover" | "bombCat" | "liarsBar" | "uno" | "jenga" | "werewolf" | "avalon" | "quest" | "midway" | "moyu" | "icecool" | "catapult";
 
 export interface GameMeta {
   id: GameId;
@@ -66,6 +70,49 @@ export const GAMES: Record<GameId, GameMeta> = {
       "撑到 18:00 下班，或者用炮台把老板打到 0 血气走他，没被抓的人都赢；所有人都被抓，老板赢。",
     ],
     color: "#0f766e",
+  },
+  icecool: {
+    id: "icecool",
+    name: "冰企鹅",
+    emoji: "🐧",
+    tagline: "弹企鹅穿门抓鱼，别被老师撞到",
+    description:
+      "ICECOOL 风格的弹企鹅桌游。立体迷宫一样的企鹅学校，轮流弹自己的企鹅，钻过门洞抓到自己颜色的鱼；每轮有一个人当老师，弹企鹅去撞学生。手眼协调、欢乐拉满，老少皆宜。",
+    minPlayers: 2,
+    maxPlayers: 6,
+    duration: "10~20 分钟",
+    tags: ["3D", "物理弹射", "手眼协调"],
+    rules: [
+      "企鹅学校有 6 个房间，房间之间的墙上开了 7 扇门。每轮每个学生有 3 条自己颜色的鱼，挂在随机的 3 扇门上。",
+      "轮流弹企鹅：在自己的企鹅附近按住，往反方向拉（像弹弓），松手就弹出去。拉得越远弹得越猛，拉回企鹅身边松手可以取消。",
+      "弹之前可以选“左拐 / 直线 / 右拐”，企鹅会滑出一道弧线，绕过门柱钻进斜对面的门。",
+      "企鹅钻过挂着自己的鱼的门就抓到这条鱼，被别人撞过去也算。企鹅之间、企鹅和墙都会真实地反弹。",
+      "每轮有一个人当老师（🎓），从操场出发。轮到老师时，老师的企鹅撞到学生就算抓住，每个学生每轮只会被抓一次；学生撞老师没关系。",
+      "有学生抓齐 3 条鱼、老师抓住所有学生、或者一轮弹满次数，这一轮就结束。每人轮流当一次老师。",
+      "每条鱼 1 分，老师每抓住一个学生 1 分。所有人都当过老师后，总分最高的人获胜。",
+    ],
+    color: "#3b9fd8",
+  },
+  catapult: {
+    id: "catapult",
+    name: "投石大战",
+    emoji: "🏯",
+    tagline: "自己搭城堡，投石机砸翻对面",
+    description:
+      "Catapult Feud 风格的对战。每人先用 16 块砖在自己的地块上搭一座立体城堡、安排 3 个士兵，然后轮流调角度和力度发射石弹。真实物理，砖块会被砸飞、城楼会塌，士兵倒下就阵亡，非常解压。",
+    minPlayers: 2,
+    maxPlayers: 4,
+    duration: "10~15 分钟",
+    tags: ["3D", "物理弹射", "对抗"],
+    rules: [
+      "搭建：每人有一块 5 × 3 格的地块、16 块砖和 3 个士兵。点格子往上叠砖（每格最多 4 层），再把士兵放到格子上，士兵会站在那一格最上面。大家同时搭，搭好之前互相看不到。",
+      "也可以直接选一个现成的城堡（城墙、瞭望塔、碉堡、迷魂阵）或者随机搭一个，再自己改。",
+      "对战：轮流发射。调好左右方向、仰角和力度，屏幕上会显示石弹前半段的飞行路线，后半段要靠自己估。",
+      "石弹、砖块、士兵都按真实物理运动：砸到砖块会把它撞飞，城楼被砸空会塌，士兵会被撞倒或者摔下去。",
+      "士兵倒下、从原来的位置摔下半格以上、或者飞出场地就算阵亡。也可能把自己人砸倒，小心别打太近。",
+      "士兵全部阵亡的人出局，最后还有士兵的人获胜。每人最多发射 10 次，打完还没分出胜负就比剩下的士兵数，一样多算平局。",
+    ],
+    color: "#8d6e3f",
   },
   midway: {
     id: "midway",
@@ -273,9 +320,9 @@ export const GAMES: Record<GameId, GameMeta> = {
 };
 
 /** 首页展示顺序 */
-export const GAME_ORDER: GameId[] = ["moyu", "midway", "avalon", "quest", "werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
+export const GAME_ORDER: GameId[] = ["icecool", "catapult", "moyu", "midway", "avalon", "quest", "werewolf", "uno", "jenga", "liarsBar", "bombCat", "numberBomb", "undercover"];
 
-export type GameView = AvalonView | NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView | QuestView | MidwayView | MoyuView;
+export type GameView = AvalonView | NumberBombView | UndercoverView | BombCatView | LiarsBarView | UnoView | JengaView | WerewolfView | QuestView | MidwayView | MoyuView | IcecoolView | CatapultView;
 export type GameAction =
   | AvalonAction
   | NumberBombAction
@@ -287,4 +334,6 @@ export type GameAction =
   | WerewolfAction
   | QuestAction
   | MidwayAction
-  | MoyuAction;
+  | MoyuAction
+  | IcecoolAction
+  | CatapultAction;
