@@ -26,7 +26,21 @@ export interface RoomView {
 }
 
 /** 扔道具：特殊玩家可以点别人的头像扔东西，纯娱乐，不影响游戏 */
-export const PROP_ITEMS = ["tomato", "egg", "bucket", "slipper", "flower"] as const;
+export const PROP_ITEMS = [
+  "tomato",
+  "egg",
+  "bucket",
+  "slipper",
+  "cake",
+  "watermelon",
+  "firecracker",
+  "ice",
+  "banana",
+  "poop",
+  "flower",
+  "kiss",
+  "like",
+] as const;
 export type PropItem = (typeof PROP_ITEMS)[number];
 
 /** 拥有扔道具权限的昵称。同一房间昵称不会重复，所以按昵称判断就够了 */

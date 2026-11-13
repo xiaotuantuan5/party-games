@@ -396,6 +396,55 @@ export const sfx = {
   bloom() {
     [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(f, 0.45, { gain: 0.09, delay: i * 0.07 }));
   },
+  /** 蛋糕糊脸：软软的噗 */
+  cakeSplat() {
+    noise(0.3, { filter: "lowpass", from: 900, to: 100, gain: 0.55 });
+    tone(110, 0.2, { slideTo: 60, gain: 0.3 });
+  },
+  /** 西瓜砸开：闷响 + 裂开 + 汁水 */
+  melonSmash() {
+    tone(90, 0.25, { slideTo: 40, gain: 0.6 });
+    noise(0.12, { filter: "highpass", from: 3000, to: 1200, gain: 0.4, delay: 0.03 });
+    noise(0.5, { filter: "lowpass", from: 2000, to: 150, gain: 0.35, delay: 0.08 });
+  },
+  /** 鞭炮：一串噼里啪啦 */
+  crackle() {
+    let t = 0;
+    for (let i = 0; i < 14; i++) {
+      noise(0.06, { filter: "highpass", from: 4000, to: 800, gain: 0.35 + Math.random() * 0.3, delay: t });
+      tone(140 + Math.random() * 80, 0.05, { type: "square", slideTo: 50, gain: 0.08, delay: t });
+      t += 0.04 + Math.random() * 0.07;
+    }
+  },
+  /** 冰块：叮当碰撞 + 结冰 */
+  iceClink() {
+    [2637, 3136, 2349].forEach((f, i) => tone(f, 0.25, { type: "triangle", gain: 0.12, delay: i * 0.06 }));
+    noise(0.5, { filter: "highpass", from: 8000, to: 3000, gain: 0.12, delay: 0.1 });
+  },
+  /** 踩香蕉皮：滋溜 + 摔一跤 */
+  slip() {
+    tone(300, 0.35, { type: "sine", slideTo: 1400, gain: 0.15 });
+    noise(0.3, { filter: "lowpass", from: 1500, to: 80, gain: 0.5, delay: 0.38 });
+    tone(80, 0.25, { slideTo: 40, gain: 0.4, delay: 0.38 });
+  },
+  /** 便便：噗噗噗 */
+  fart() {
+    for (let i = 0; i < 3; i++) {
+      tone(95 - i * 10, 0.16, { type: "sawtooth", slideTo: 60, gain: 0.12, delay: i * 0.18 });
+      noise(0.14, { filter: "lowpass", from: 500, to: 120, gain: 0.25, delay: i * 0.18 });
+    }
+  },
+  /** 飞吻：啵～ */
+  smooch() {
+    tone(400, 0.08, { type: "sine", slideTo: 1200, gain: 0.25 });
+    noise(0.04, { filter: "bandpass", from: 2500, to: 1500, gain: 0.2, delay: 0.06 });
+    [1047, 1319].forEach((f, i) => tone(f, 0.3, { gain: 0.07, delay: 0.15 + i * 0.1 }));
+  },
+  /** 点赞：叮！ */
+  thumbsUp() {
+    tone(1319, 0.12, { type: "triangle", gain: 0.15 });
+    tone(1760, 0.35, { type: "triangle", gain: 0.15, delay: 0.1 });
+  },
   win() {
     const d = 0.8; // 先让爆炸声播完
     [523, 659, 784].forEach((f, i) => tone(f, 0.18, { type: "triangle", gain: 0.18, delay: d + i * 0.14 }));
