@@ -24,8 +24,8 @@ export const SOLO_GAMES: Record<SoloGameId, SoloGameMeta> = {
     id: "stickman",
     name: "火柴人刷图",
     emoji: "⚔️",
-    tagline: "横版刷图，连招浮空，万剑归宗",
-    tags: ["3D", "动作", "横屏"],
+    tagline: "水墨横版刷图，连招浮空，万剑归宗",
+    tags: ["水墨", "动作", "横屏"],
     color: "#ffb03a",
   },
   tarot: {

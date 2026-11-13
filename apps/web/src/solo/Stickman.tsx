@@ -13,7 +13,7 @@ const MAP_KEY = "party.solo.stickman.map";
 
 function savedMap(): MapId {
   const m = localStorage.getItem(MAP_KEY);
-  return MAP_ORDER.includes(m as MapId) ? (m as MapId) : "maple";
+  return MAP_ORDER.includes(m as MapId) ? (m as MapId) : "ink";
 }
 
 function savedRole(): RoleId {
@@ -252,7 +252,7 @@ export function Stickman({ onExit }: { onExit: () => void }) {
   return (
     <div className={forced ? "sm-root sm-forced" : "sm-root"}>
       <div className="sm-stage" ref={mount} />
-      {webglError && <p className="sm-error">你的浏览器不支持 WebGL，没法显示 3D 画面 😢</p>}
+      {webglError && <p className="sm-error">你的浏览器不支持 Canvas 绘图，没法显示游戏画面 😢</p>}
 
       {playing && hud && !cine && <Hud hud={hud} onPause={() => { sceneRef.current?.setPaused(true); setPhase("paused"); }} />}
       {playing && hud && !cine && sceneRef.current && <Controls scene={sceneRef.current} hud={hud} touch={touch} forced={forced} />}

@@ -446,7 +446,7 @@ export const SKILLS: Record<SkillId, SkillDef> = {
 };
 
 /** 头饰：用来区分角色的外形（不影响玩法） */
-export type Gear = "band" | "none" | "mask" | "bun";
+export type Gear = "band" | "none" | "mask" | "bun" | "helmet";
 
 export interface RoleDef {
   id: RoleId;
@@ -578,13 +578,13 @@ export interface EnemyDef {
 }
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = {
-  goblin: { name: "山贼刀手", hp: 650, speed: 3.2, dmg: 60, score: 100, color: 0x111116 },
-  archer: { name: "山贼弓手", hp: 480, speed: 3, dmg: 70, score: 120, color: 0x15151b },
-  shield: { name: "藤牌兵", hp: 1200, speed: 2.2, dmg: 80, score: 150, color: 0x1a1816 },
-  bomber: { name: "火药傀儡", hp: 220, speed: 5.2, dmg: 150, score: 80, color: 0xa33a2a },
+  goblin: { name: "山贼刀手", hp: 650, speed: 3.2, dmg: 60, score: 100, color: 0x3a3835 },
+  archer: { name: "山贼弓手", hp: 480, speed: 3, dmg: 70, score: 120, color: 0x45413c },
+  shield: { name: "藤牌兵", hp: 1200, speed: 2.2, dmg: 80, score: 150, color: 0x34312d },
+  bomber: { name: "火药傀儡", hp: 220, speed: 5.2, dmg: 150, score: 80, color: 0x5a4632 },
 };
 
-export const BOSS = { name: "血煞堂主", hp: 32000, bars: 8, dmg: 150, score: 5000, color: 0x0b0b10 };
+export const BOSS = { name: "血煞堂主", hp: 32000, bars: 8, dmg: 150, score: 5000, color: 0x26201d };
 
 export interface Spawn {
   kind: EnemyKind;
@@ -654,10 +654,10 @@ export function gradeFor(score: number, revived: boolean): Grade {
 export const ELEMENT_COLOR: Record<Element, number> = { fire: 0xff6a20, ice: 0x6ad8ff, thunder: 0xb47aff };
 
 /** 可选场景（开局选一个，整局使用同一套配色） */
-export const MAP_ORDER = ["maple", "bamboo", "bloodmoon"] as const;
+export const MAP_ORDER = ["ink", "maple", "bloodmoon"] as const;
 export type MapId = (typeof MAP_ORDER)[number];
 export const MAPS: Record<MapId, { name: string; emoji: string; desc: string }> = {
-  maple: { name: "红枫夜雾", emoji: "🍁", desc: "青蓝色的雾，红枫树冠" },
-  bamboo: { name: "月下竹海", emoji: "🎋", desc: "深蓝的雾，白色的月，竹林剪影" },
+  ink: { name: "水墨古寺", emoji: "🏯", desc: "灰白宣纸，层层飞檐，斜照的光" },
+  maple: { name: "红枫夜雾", emoji: "🍁", desc: "青蓝色的夜雾，红枫树冠" },
   bloodmoon: { name: "血月古寺", emoji: "🌕", desc: "暗紫色的雾，血红色的月" },
 };
