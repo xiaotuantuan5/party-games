@@ -13,10 +13,14 @@ interface SocketData {
   roomCode?: string;
   /** 上一次位置上报的时间，用来限流 */
   lastMoveAt?: number;
+  /** 上一次扔道具的时间，用来限流 */
+  lastThrowAt?: number;
 }
 
 /** 客户端每秒发 12 次左右，超过 25 次的直接丢掉 */
 const MIN_MOVE_INTERVAL_MS = 40;
+/** 扔道具最快每 0.4 秒一次，防止连点刷屏 */
+const MIN_THROW_INTERVAL_MS = 400;
 
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
 
@@ -146,6 +150,17 @@ io.on("connection", (socket: AppSocket) => {
       console.error(err);
     }
   });
+
+  socket.on("fx:throw", (p, ack) =>
+    handle(ack, () => {
+      const { code, playerId } = requireRoom(socket);
+      const now = Date.now();
+      if (now - (socket.data.lastThrowAt ?? 0) < MIN_THROW_INTERVAL_MS) throw new GameError("手速太快了，歇一下");
+      const { event, socketIds } = rooms.throwProp(code, playerId, p?.to, p?.item);
+      socket.data.lastThrowAt = now;
+      for (const id of socketIds) io.to(id).emit("fx:throw", event);
+    }),
+  );
 
   socket.on("disconnect", () => {
     const { roomCode, playerId } = socket.data;

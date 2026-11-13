@@ -18,12 +18,21 @@ export function Avatar({ name, seed, size = 32, src }: { name: string; seed: str
   const first = [...(name.trim() || "?")][0];
   if (url && failed !== url) {
     return (
-      <img className="avatar" src={url} alt="" style={{ width: size, height: size }} onError={() => setFailed(url)} aria-hidden />
+      <img
+        className="avatar"
+        data-avatar-seed={seed}
+        src={url}
+        alt=""
+        style={{ width: size, height: size }}
+        onError={() => setFailed(url)}
+        aria-hidden
+      />
     );
   }
   return (
     <span
       className="avatar"
+      data-avatar-seed={seed}
       style={{ width: size, height: size, fontSize: size * 0.45, background: `hsl(${hue(seed)} 65% 55%)` }}
       aria-hidden
     >

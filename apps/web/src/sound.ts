@@ -358,6 +358,44 @@ export const sfx = {
     tone(110, 1.2, { type: "sawtooth", slideTo: 440, gain: 0.08 });
     [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.5, { type: "triangle", gain: 0.1, delay: 0.2 + i * 0.08 }));
   },
+  /** 扔道具：东西飞出去的呼呼声 */
+  whoosh() {
+    noise(0.45, { filter: "bandpass", from: 400, to: 2600, gain: 0.22 });
+  },
+  /** 西红柿砸中：湿乎乎的啪叽 */
+  splat() {
+    noise(0.25, { filter: "lowpass", from: 1800, to: 120, gain: 0.6 });
+    tone(150, 0.18, { slideTo: 50, gain: 0.45 });
+    for (let i = 0; i < 4; i++) noise(0.05, { filter: "bandpass", from: 900, to: 500, gain: 0.12, delay: 0.12 + i * 0.07 });
+  },
+  /** 鸡蛋砸中：蛋壳咔嚓，再加蛋液啪嗒 */
+  eggCrack() {
+    for (let i = 0; i < 3; i++) noise(0.03, { filter: "highpass", from: 5000, to: 3000, gain: 0.35, delay: i * 0.025 });
+    noise(0.2, { filter: "lowpass", from: 1400, to: 150, gain: 0.35, delay: 0.08 });
+  },
+  /** 一桶水泼过来：哗啦啦 + 冒泡 */
+  waterSplash() {
+    noise(1.1, { filter: "lowpass", from: 5000, to: 300, gain: 0.55 });
+    noise(0.6, { filter: "bandpass", from: 2500, to: 700, gain: 0.25, delay: 0.1 });
+    for (let i = 0; i < 6; i++) {
+      const f = 500 + Math.random() * 700;
+      tone(f, 0.08, { slideTo: f * 1.8, gain: 0.07, delay: 0.35 + i * 0.09 });
+    }
+    // 最后桶落地：哐当
+    tone(240, 0.3, { type: "triangle", slideTo: 200, gain: 0.18, delay: 0.9 });
+    tone(370, 0.3, { type: "triangle", slideTo: 330, gain: 0.1, delay: 0.9 });
+  },
+  /** 拖鞋拍中：啪！ */
+  slap() {
+    noise(0.12, { filter: "highpass", from: 3500, to: 900, gain: 0.7 });
+    tone(320, 0.08, { type: "square", slideTo: 120, gain: 0.15 });
+    // 眼冒金星
+    [1568, 1976, 1568].forEach((f, i) => tone(f, 0.12, { type: "triangle", gain: 0.05, delay: 0.2 + i * 0.1 }));
+  },
+  /** 送花：叮铃铃 */
+  bloom() {
+    [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(f, 0.45, { gain: 0.09, delay: i * 0.07 }));
+  },
   win() {
     const d = 0.8; // 先让爆炸声播完
     [523, 659, 784].forEach((f, i) => tone(f, 0.18, { type: "triangle", gain: 0.18, delay: d + i * 0.14 }));

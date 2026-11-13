@@ -25,6 +25,24 @@ export interface RoomView {
   game: GameView | null;
 }
 
+/** 扔道具：特殊玩家可以点别人的头像扔东西，纯娱乐，不影响游戏 */
+export const PROP_ITEMS = ["tomato", "egg", "bucket", "slipper", "flower"] as const;
+export type PropItem = (typeof PROP_ITEMS)[number];
+
+/** 拥有扔道具权限的昵称。同一房间昵称不会重复，所以按昵称判断就够了 */
+export const PROP_THROWERS: readonly string[] = ["叮当"];
+
+export function canThrowProps(name: string): boolean {
+  return PROP_THROWERS.includes(name.trim());
+}
+
+/** 服务端广播给房间里所有人：谁朝谁扔了什么 */
+export interface PropThrow {
+  from: string;
+  to: string;
+  item: PropItem;
+}
+
 export type Ack<T = void> = (res: { ok: true; data: T } | { ok: false; error: string }) => void;
 
 /** 加入房间成功后返回。playerId 是 token 的哈希，可以公开。 */
@@ -47,6 +65,8 @@ export interface ClientToServerEvents {
   "game:restart": (ack: Ack) => void;
   /** 实时游戏的位置上报，高频、不需要回执，丢了也没关系 */
   "game:move": (move: QuestMove) => void;
+  /** 扔道具，只有 PROP_THROWERS 里的昵称可以用 */
+  "fx:throw": (p: { to: string; item: PropItem }, ack: Ack) => void;
 }
 
 export interface ServerToClientEvents {
@@ -54,4 +74,5 @@ export interface ServerToClientEvents {
   "room:closed": (reason: string) => void;
   /** 转发其他玩家的实时位置 */
   "game:move": (playerId: string, move: QuestMove) => void;
+  "fx:throw": (t: PropThrow) => void;
 }

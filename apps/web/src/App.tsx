@@ -14,6 +14,7 @@ import { Werewolf } from "./games/Werewolf";
 import { useParty, type PartyActions } from "./party";
 import { compressAvatar, saveAvatar, saveName, savedAvatar, savedName } from "./profile";
 import { SOLO_GAMES, SOLO_ORDER, getBest, type SoloGameId } from "./solo/soloGames";
+import { ThrowLayer } from "./throw";
 import { useRun, type GameProps } from "./ui";
 
 // 3D 层层叠依赖 three.js 和物理引擎，体积较大，进入游戏时才加载
@@ -58,6 +59,8 @@ export function App() {
       ) : (
         <RoomAvatars room={room}>
           <RoomScreen room={room} me={me} actions={actions} />
+          {/* 秘境闯关是全屏 3D，没有可以点的头像，不显示道具按钮，但被砸时仍有满屏特效 */}
+          <ThrowLayer room={room} me={me} allowArm={room.game?.gameId !== "quest"} />
         </RoomAvatars>
       )}
     </div>

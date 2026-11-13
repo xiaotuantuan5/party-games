@@ -1,0 +1,383 @@
+/* 扔道具：道具模式、飞行、砸中头像、被砸的人满屏特效 */
+
+@keyframes throw-pulse {
+  50% {
+    outline-color: rgba(255, 84, 112, 0.25);
+  }
+}
+
+.throw-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  z-index: 140;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 26px;
+  line-height: 1;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.throw-toggle.armed {
+  background: #ff5470;
+  color: #fff;
+  font-size: 22px;
+}
+
+/* 道具模式下盖在页面上，挡住游戏里的点击，只用来找手指下面的头像 */
+.throw-catcher {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  cursor: crosshair;
+  background: rgba(255, 84, 112, 0.04);
+}
+
+.throw-banner {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 125;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #ff5470;
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.throw-picker {
+  position: fixed;
+  z-index: 130;
+  padding: 10px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
+  animation: throw-pop 0.18s ease-out both;
+}
+
+.throw-picker-title {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #666;
+  text-align: center;
+}
+
+.throw-picker-items {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.throw-picker-items button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0;
+  border-radius: 12px;
+  background: #f6f4ff;
+  box-shadow: none;
+}
+
+.throw-picker-items button:active {
+  transform: scale(0.9);
+}
+
+.throw-picker-emoji {
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.throw-picker-name {
+  font-size: 11px;
+  color: #444;
+}
+
+@keyframes throw-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+.throw-flying {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 150;
+  font-size: 34px;
+  line-height: 1;
+  pointer-events: none;
+  will-change: transform;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* 砸中头像 */
+.throw-hit {
+  position: fixed;
+  z-index: 145;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.throw-stain {
+  position: absolute;
+  left: calc(var(--s) / -2);
+  top: calc(var(--s) / -2);
+  width: var(--s);
+  height: var(--s);
+  border-radius: 46% 54% 42% 58% / 55% 40% 60% 45%;
+  animation:
+    throw-stain-in 0.18s ease-out both,
+    throw-fade 0.6s 1.8s ease-in forwards;
+}
+
+.throw-hit-tomato .throw-stain {
+  background: radial-gradient(circle at 40% 40%, #ff6b5b, #d7261e 60%, rgba(180, 20, 20, 0.85));
+  box-shadow:
+    calc(var(--s) * 0.45) calc(var(--s) * 0.1) 0 calc(var(--s) * -0.32) #d7261e,
+    calc(var(--s) * -0.4) calc(var(--s) * 0.3) 0 calc(var(--s) * -0.36) #d7261e;
+}
+
+.throw-hit-egg .throw-stain {
+  background: radial-gradient(circle at 50% 50%, #ffc21a 0 26%, #fff8e6 29% 70%, rgba(255, 250, 235, 0.7) 100%);
+}
+
+.throw-hit-bucket .throw-stain {
+  background: radial-gradient(circle, rgba(120, 200, 255, 0.85), rgba(40, 140, 240, 0.55) 70%, transparent);
+}
+
+.throw-hit-slipper .throw-stain,
+.throw-hit-flower .throw-stain {
+  display: none;
+}
+
+@keyframes throw-stain-in {
+  from {
+    transform: scale(0.2);
+  }
+  70% {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes throw-fade {
+  to {
+    opacity: 0;
+    transform: translateY(14px) scaleY(1.15);
+  }
+}
+
+.throw-bit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 16px;
+  transform: translate(-50%, -50%);
+  animation: throw-bit 0.9s ease-out both;
+}
+
+@keyframes throw-bit {
+  to {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 30px)) scale(0.6);
+    opacity: 0;
+  }
+}
+
+.throw-hit-text {
+  position: absolute;
+  left: 0;
+  top: calc(var(--s) / -2 - 10px);
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  font-weight: 900;
+  color: #fff;
+  white-space: nowrap;
+  -webkit-text-stroke: 1px #c0142a;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  animation: throw-hit-text 1.4s ease-out both;
+}
+
+.throw-hit-flower .throw-hit-text {
+  -webkit-text-stroke-color: #e0508a;
+}
+
+@keyframes throw-hit-text {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -20%) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -60%) scale(1.25);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -110%) scale(1);
+  }
+}
+
+/* 其他人看到的小提示 */
+.throw-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  z-index: 135;
+  max-width: 90vw;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(30, 30, 40, 0.85);
+  color: #fff;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: throw-toast 2.2s ease-out both;
+}
+
+@keyframes throw-toast {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  10%,
+  85% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 被砸的人：满屏特效 */
+.throw-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  overflow: hidden;
+  pointer-events: none;
+  animation: throw-screen-out 0.6s 2.2s ease-in forwards;
+}
+
+@keyframes throw-screen-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.throw-screen-blob {
+  position: absolute;
+  width: var(--s);
+  height: var(--s);
+  margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+  border-radius: 46% 54% 42% 58% / 55% 40% 60% 45%;
+  rotate: var(--r);
+  animation:
+    throw-stain-in 0.2s ease-out both,
+    throw-drip 2.4s 0.3s ease-in forwards;
+}
+
+.throw-screen-tomato .throw-screen-blob {
+  background: radial-gradient(circle at 40% 40%, rgba(255, 107, 91, 0.95), rgba(215, 38, 30, 0.92) 60%, rgba(160, 15, 15, 0.8));
+}
+
+.throw-screen-egg .throw-screen-blob {
+  background: radial-gradient(circle, #ffc21a 0 24%, rgba(255, 248, 230, 0.95) 27% 72%, rgba(255, 250, 235, 0.6) 100%);
+}
+
+@keyframes throw-drip {
+  to {
+    translate: 0 60px;
+    scale: 0.9 1.4;
+  }
+}
+
+.throw-screen-bucket {
+  background: linear-gradient(180deg, rgba(80, 170, 255, 0.75), rgba(40, 120, 230, 0.55));
+  animation:
+    throw-wave 0.5s ease-out both,
+    throw-screen-out 0.8s 2s ease-in forwards;
+}
+
+@keyframes throw-wave {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.throw-screen-flower {
+  background: radial-gradient(circle, rgba(255, 182, 213, 0.5), transparent 70%);
+}
+
+.throw-screen-slipper {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.6), transparent 60%);
+}
+
+.throw-screen-rain {
+  position: absolute;
+  top: -40px;
+  font-size: 26px;
+  animation: throw-rain linear both;
+}
+
+@keyframes throw-rain {
+  to {
+    transform: translateY(calc(100vh + 80px)) rotate(200deg);
+  }
+}
+
+.throw-screen-big {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  font-size: 110px;
+  transform: translate(-50%, -50%);
+  animation: throw-slam 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+
+@keyframes throw-slam {
+  from {
+    transform: translate(-50%, -50%) scale(3) rotate(-30deg);
+    opacity: 0;
+  }
+}
+
+.throw-screen-text {
+  position: absolute;
+  left: 50%;
+  bottom: 22%;
+  transform: translateX(-50%);
+  max-width: 90vw;
+  font-size: 24px;
+  font-weight: 900;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  animation: throw-rise 0.4s 0.15s both;
+}
+
+@keyframes throw-rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+}

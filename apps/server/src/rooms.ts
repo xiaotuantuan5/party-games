@@ -4,9 +4,13 @@ import {
   MAX_AVATAR_DATA_URL_LENGTH,
   MAX_NAME_LENGTH,
   MAX_PLAYERS_PER_ROOM,
+  PROP_ITEMS,
+  canThrowProps,
   type GameAction,
   type GameId,
   type PlayerInfo,
+  type PropItem,
+  type PropThrow,
   type QuestMove,
   type RoomView,
 } from "@party/shared";
@@ -235,6 +239,18 @@ export class RoomManager {
     const room = this.requireHost(code, playerId);
     room.game = null;
     this.start(code, playerId);
+  }
+
+  /** 扔道具：校验权限和目标，返回要广播的在线玩家 socket（包括扔的人自己） */
+  throwProp(code: string, from: string, to: unknown, item: unknown): { event: PropThrow; socketIds: string[] } {
+    const room = this.get(code);
+    const thrower = room?.players.find((p) => p.id === from);
+    if (!room || !thrower) throw new GameError("你不在这个房间");
+    if (!canThrowProps(thrower.name)) throw new GameError("你没有扔道具的权限");
+    if (typeof to !== "string" || to === from || !room.players.some((p) => p.id === to)) throw new GameError("找不到这个人");
+    if (typeof item !== "string" || !(PROP_ITEMS as readonly string[]).includes(item)) throw new GameError("没有这个道具");
+    const socketIds = room.players.filter((p) => p.socketId).map((p) => p.socketId!);
+    return { event: { from, to, item: item as PropItem }, socketIds };
   }
 
   /** 只有房间里的玩家的头像才能取到，房间解散或玩家退出后就没了 */

@@ -5,6 +5,8 @@ import type {
   GameAction,
   GameId,
   JoinResult,
+  PropItem,
+  PropThrow,
   QuestMove,
   RoomView,
   ServerToClientEvents,
@@ -40,6 +42,18 @@ export function onMove(cb: (playerId: string, move: QuestMove) => void): () => v
   };
 }
 
+/** 扔道具（只有特殊昵称有权限，服务端会再校验一次） */
+export function throwProp(to: string, item: PropItem): Promise<void> {
+  return socket.emitWithAck("fx:throw", { to, item }).then(unwrap);
+}
+
+/** 订阅房间里的扔道具事件，返回取消订阅的函数 */
+export function onThrow(cb: (t: PropThrow) => void): () => void {
+  socket.on("fx:throw", cb);
+  return () => {
+    socket.off("fx:throw", cb);
+  };
+}
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
