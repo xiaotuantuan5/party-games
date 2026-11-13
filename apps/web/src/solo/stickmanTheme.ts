@@ -1,702 +1,913 @@
-import * as THREE from "three";
+import { DEPTH, View, css, dryBrush, mixHex, paperGrain, rng, roughen } from "./ink2d";
 
 /**
- * 古风场景：山门、竹林、古寺庭院、藏经楼、血煞大殿。
- * 背景用 canvas 画的水墨山水，前景是几何体。花瓣和飘叶用 InstancedMesh 一次画完。
+ * 2D 水墨场景：每个房间由几层剪影组成（远山、中景寺庙、近景屋檐、地面、前景），
+ * 每层先画到一张离屏画布上，游戏中按视差平移、缩放后贴到屏幕上，所以细节再多也不影响帧率。
+ * 花瓣和飘叶每帧单独画。
  */
 
-const rand = (a: number, b: number) => a + Math.random() * (b - a);
+// ================= 配色 =================
 
-/** 地面边长（足够让镜头在任何角度都看不到边） */
-const FLOOR_SIZE = 320;
-/** 水墨天幕的半径 */
-const DOME_RADIUS = 120;
-/** 中景远山的数量 */
-const HILL_COUNT = 48;
+/** 一套场景的配色 */
+export interface MapStyle {
+  /** 宣纸 / 天色：顶、中、底 */
+  sky: [string, string, string];
+  /** 远、中、近三层剪影的颜色 */
+  far: number;
+  mid: number;
+  near: number;
+  /** 地面：靠远处、靠近处 */
+  ground: [number, number];
+  /** 雾的 rgb，格式 "r,g,b" */
+  fog: string;
+  /** 太阳或月亮，null 不画 */
+  orb: { color: string; r: number } | null;
+  /** 斜射的光束强度（0 不画） */
+  rays: number;
+  /** 飘落物的颜色 */
+  leaf: number;
+  /** 前景有没有红枫 */
+  maple: boolean;
+  /** 夜景：粒子和光晕用“滤色”叠加更亮 */
+  night: boolean;
+}
+
+export type MapStyleId = "ink" | "maple" | "bloodmoon";
+
+export const MAP_STYLES: Record<MapStyleId, MapStyle> = {
+  ink: {
+    sky: ["#bdb9b2", "#dedbd4", "#cfcbc3"],
+    far: 0xaaa69f,
+    mid: 0x77736c,
+    near: 0x34312d,
+    ground: [0xa29e96, 0x3c3935],
+    fog: "238,235,228",
+    orb: { color: "#f6f3ec", r: 1.2 },
+    rays: 0.32,
+    leaf: 0x2a2826,
+    maple: false,
+    night: false,
+  },
+  maple: {
+    sky: ["#081a20", "#14404a", "#2a5e66"],
+    far: 0x2c5e66,
+    mid: 0x18404a,
+    near: 0x0a1f24,
+    ground: [0x2c5a60, 0x081417],
+    fog: "140,196,200",
+    orb: { color: "#f2e6cc", r: 0.9 },
+    rays: 0.12,
+    leaf: 0xb3262e,
+    maple: true,
+    night: true,
+  },
+  bloodmoon: {
+    sky: ["#10050b", "#38111f", "#561c2a"],
+    far: 0x4e2434,
+    mid: 0x331624,
+    near: 0x160910,
+    ground: [0x4a2028, 0x0e0508],
+    fog: "176,96,116",
+    orb: { color: "#c4283a", r: 1.8 },
+    rays: 0.08,
+    leaf: 0xa3202a,
+    maple: false,
+    night: true,
+  },
+};
 
 // ================= 花瓣 / 飘叶 =================
 
-/** 一次绘制几百片花瓣。ambient 的会一直飘，burst 的是技能炸出来的，会慢慢消失 */
+interface Petal {
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  a: number;
+  spin: number;
+  flip: number;
+  life: number;
+  max: number;
+  color: string;
+  size: number;
+  ambient: boolean;
+}
+
+/** 花瓣和墨点：ambient 的会一直飘，burst 的是技能炸出来的，会慢慢消失 */
 export class Petals {
-  readonly mesh: THREE.InstancedMesh;
-  private n: number;
-  private pos: Float32Array;
-  private vel: Float32Array;
-  private ang: Float32Array;
-  private spin: Float32Array;
-  private life: Float32Array;
-  private ambient: Uint8Array;
-  private next = 0;
-  private dummy = new THREE.Object3D();
-  private color = new THREE.Color();
+  private list: Petal[] = [];
+  private box = { x0: 0, x1: 30, z0: -3, z1: 3, top: 7 };
   density = 1;
 
-  constructor(n: number) {
-    this.n = n;
-    this.pos = new Float32Array(n * 3);
-    this.vel = new Float32Array(n * 3);
-    this.ang = new Float32Array(n * 3);
-    this.spin = new Float32Array(n * 3);
-    this.life = new Float32Array(n);
-    this.ambient = new Uint8Array(n);
-    const geo = new THREE.PlaneGeometry(0.16, 0.1);
-    const mat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
-    this.mesh = new THREE.InstancedMesh(geo, mat, n);
-    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    this.mesh.frustumCulled = false;
-    for (let i = 0; i < n; i++) {
-      this.mesh.setColorAt(i, this.color.set(0xffb7c5));
-      this.pos[i * 3 + 1] = -99;
-    }
-    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
-  }
-
-  /** 环境里一直飘的花瓣或飘叶，从顶部落下，落到地面后从顶部重新出现 */
   seedAmbient(count: number, color: number, box: { x0: number; x1: number; z0: number; z1: number; top: number }): void {
-    this.color.set(color);
-    for (let k = 0; k < count && k < this.n; k++) {
-      const i = this.next;
-      this.next = (this.next + 1) % this.n;
-      this.ambient[i] = 1;
-      this.pos.set([rand(box.x0, box.x1), rand(0, box.top), rand(box.z0, box.z1)], i * 3);
-      this.vel.set([0, -rand(0.3, 0.7), 0], i * 3);
-      this.ang.set([rand(0, 6), rand(0, 6), rand(0, 6)], i * 3);
-      this.spin.set([rand(-2, 2), rand(-2, 2), rand(-3, 3)], i * 3);
-      this.life[i] = 1e9;
-      this.mesh.setColorAt(i, this.color);
+    this.box = box;
+    const c = css(color);
+    for (let i = 0; i < count; i++) {
+      this.list.push({
+        x: box.x0 + Math.random() * (box.x1 - box.x0),
+        y: Math.random() * box.top,
+        z: box.z0 + Math.random() * (box.z1 - box.z0),
+        vx: 0,
+        vy: -(0.3 + Math.random() * 0.4),
+        vz: 0,
+        a: Math.random() * 6,
+        spin: (Math.random() - 0.5) * 4,
+        flip: Math.random() * 6,
+        life: 1e9,
+        max: 1e9,
+        color: c,
+        size: 0.06 + Math.random() * 0.05,
+        ambient: true,
+      });
     }
-    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
   }
 
   /** 技能炸出来的花瓣，向四周飞散后慢慢消失 */
   burst(at: { x: number; y: number; z: number }, count: number, color: number, speed: number, life: number): void {
-    this.color.set(color);
     const total = Math.max(1, Math.round(count * this.density));
+    const c = css(color);
     for (let k = 0; k < total; k++) {
-      const i = this.next;
-      this.next = (this.next + 1) % this.n;
-      this.ambient[i] = 0;
-      this.pos.set([at.x + rand(-0.2, 0.2), at.y + rand(-0.2, 0.2), at.z + rand(-0.2, 0.2)], i * 3);
-      const s = speed * rand(0.4, 1);
-      const th = rand(0, Math.PI * 2);
-      const u = rand(-0.6, 0.8);
-      this.vel.set([Math.cos(th) * s, u * s + 1.5, Math.sin(th) * s * 0.6], i * 3);
-      this.ang.set([rand(0, 6), rand(0, 6), rand(0, 6)], i * 3);
-      this.spin.set([rand(-10, 10), rand(-10, 10), rand(-10, 10)], i * 3);
-      this.life[i] = life * rand(0.6, 1);
-      this.mesh.setColorAt(i, this.color);
+      const s = speed * (0.4 + Math.random() * 0.6);
+      const th = Math.random() * Math.PI * 2;
+      const u = -0.6 + Math.random() * 1.4;
+      this.list.push({
+        x: at.x + (Math.random() - 0.5) * 0.4,
+        y: at.y + (Math.random() - 0.5) * 0.4,
+        z: at.z + (Math.random() - 0.5) * 0.4,
+        vx: Math.cos(th) * s,
+        vy: u * s + 1.5,
+        vz: Math.sin(th) * s * 0.4,
+        a: Math.random() * 6,
+        spin: (Math.random() - 0.5) * 18,
+        flip: Math.random() * 6,
+        life: life * (0.6 + Math.random() * 0.4),
+        max: life,
+        color: c,
+        size: 0.06 + Math.random() * 0.05,
+        ambient: false,
+      });
     }
-    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+    if (this.list.length > 520) this.list.splice(0, this.list.length - 520);
   }
 
-  /** 把一串点当作花瓣的路径（比如龙身、扇子轨迹）上撒花瓣，用来做华丽的拖尾 */
-  trail(points: THREE.Vector3[], color: number, life: number): void {
-    for (const p of points) this.burst(p, 1, color, 0.6, life);
-  }
-
-  update(dt: number, wind = 0): void {
-    const box = this.dummy;
-    for (let i = 0; i < this.n; i++) {
-      const i3 = i * 3;
-      if (this.ambient[i]) {
-        this.pos[i3] = this.pos[i3]! + (wind + Math.sin(this.ang[i3 + 1]! + this.spin[i3 + 2]! * 0) * 0.3) * dt;
-        this.pos[i3 + 1] = this.pos[i3 + 1]! + this.vel[i3 + 1]! * dt;
-        this.pos[i3 + 2] = this.pos[i3 + 2]! + Math.cos(this.ang[i3]!) * 0.1 * dt;
-        if (this.pos[i3 + 1]! < -0.05) this.pos[i3 + 1] = rand(4, 7);
-        this.ang[i3] = this.ang[i3]! + this.spin[i3]! * dt;
-        this.ang[i3 + 1] = this.ang[i3 + 1]! + this.spin[i3 + 1]! * dt;
-        this.ang[i3 + 2] = this.ang[i3 + 2]! + this.spin[i3 + 2]! * dt;
-      } else if (this.life[i]! > 0) {
-        this.life[i] = this.life[i]! - dt;
-        const drag = Math.max(0, 1 - 1.6 * dt);
-        this.vel[i3] = this.vel[i3]! * drag;
-        this.vel[i3 + 1] = this.vel[i3 + 1]! * drag - 3 * dt;
-        this.vel[i3 + 2] = this.vel[i3 + 2]! * drag;
-        this.pos[i3] = this.pos[i3]! + this.vel[i3]! * dt;
-        this.pos[i3 + 1] = this.pos[i3 + 1]! + this.vel[i3 + 1]! * dt;
-        this.pos[i3 + 2] = this.pos[i3 + 2]! + this.vel[i3 + 2]! * dt;
-        this.ang[i3] = this.ang[i3]! + this.spin[i3]! * dt;
-        this.ang[i3 + 1] = this.ang[i3 + 1]! + this.spin[i3 + 1]! * dt;
-        this.ang[i3 + 2] = this.ang[i3 + 2]! + this.spin[i3 + 2]! * dt;
-        if (this.life[i]! <= 0 || this.pos[i3 + 1]! < -0.05) {
-          this.life[i] = 0;
-          this.pos[i3 + 1] = -99;
+  update(dt: number, t: number): void {
+    const wind = Math.sin(t * 0.3) * 0.4 + 0.25;
+    for (let i = this.list.length - 1; i >= 0; i--) {
+      const p = this.list[i]!;
+      p.a += p.spin * dt;
+      p.flip += dt * 3;
+      if (p.ambient) {
+        p.x += (wind + Math.sin(p.a) * 0.3) * dt;
+        p.y += p.vy * dt;
+        if (p.y < -0.05) {
+          p.y = this.box.top * (0.6 + Math.random() * 0.4);
+          p.x = this.box.x0 + Math.random() * (this.box.x1 - this.box.x0);
         }
-      } else continue;
-      const s = this.life[i]! > 0 && this.life[i]! < 0.3 ? this.life[i]! / 0.3 : 1;
-      box.position.set(this.pos[i3]!, this.pos[i3 + 1]!, this.pos[i3 + 2]!);
-      box.rotation.set(this.ang[i3]!, this.ang[i3 + 1]!, this.ang[i3 + 2]!);
-      box.scale.setScalar(s);
-      box.updateMatrix();
-      this.mesh.setMatrixAt(i, box.matrix);
+        continue;
+      }
+      p.life -= dt;
+      if (p.life <= 0 || p.y < -0.05) {
+        this.list.splice(i, 1);
+        continue;
+      }
+      const drag = Math.max(0, 1 - 1.6 * dt);
+      p.vx *= drag;
+      p.vy = p.vy * drag - 3 * dt;
+      p.vz *= drag;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.z += p.vz * dt;
     }
-    this.mesh.instanceMatrix.needsUpdate = true;
   }
 
-  dispose(): void {
-    this.mesh.geometry.dispose();
-    (this.mesh.material as THREE.Material).dispose();
-    this.mesh.dispose();
+  draw(g: CanvasRenderingContext2D, v: View): void {
+    g.save();
+    for (const p of this.list) {
+      const x = v.px(p.x);
+      const y = v.py(p.y, p.z);
+      if (x < -20 || x > v.W + 20 || y < -20 || y > v.H + 20) continue;
+      const fade = p.ambient ? 0.85 : Math.min(1, p.life / 0.3);
+      const r = p.size * v.k;
+      g.globalAlpha = fade;
+      g.fillStyle = p.color;
+      g.beginPath();
+      g.ellipse(x, y, r, Math.max(0.6, r * 0.45 * Math.abs(Math.cos(p.flip))), p.a, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.restore();
   }
 }
 
-// ================= 水墨全景 =================
+// ================= 剪影画法（单位：世界单位；y 向下为正，0 是这一层的地平线） =================
 
-/**
- * 环绕一圈的水墨山水：2048×512，左右首尾相接（山脊用整数倍频率的正弦叠加，保证拼缝处没有断开）。
- * 天色按房间变，山门和竹林偏青灰，血煞大殿偏血红。
- */
-function panorama(style: MapStyle, room: number): THREE.CanvasTexture {
-  const W = 2048;
-  const H = 512;
-  const c = document.createElement("canvas");
-  c.width = W;
-  c.height = H;
-  const g = c.getContext("2d")!;
-  const sky = g.createLinearGradient(0, 0, 0, H * 0.7);
-  sky.addColorStop(0, style.sky[0]);
-  sky.addColorStop(0.7, style.sky[1]);
-  sky.addColorStop(1, style.sky[2]);
-  g.fillStyle = sky;
-  g.fillRect(0, 0, W, H);
+type G = CanvasRenderingContext2D;
 
-  // 月亮与月晕，放在画面的右上方；血煞大殿的月更大
-  const big = room === 4 ? 1.8 : 1;
-  const halo = g.createRadialGradient(1500, 110, 30, 1500, 110, 260 * big);
-  halo.addColorStop(0, style.moon + "66");
-  halo.addColorStop(1, style.moon + "00");
-  g.fillStyle = halo;
-  g.fillRect(1100, 0, 800, 460);
-  g.fillStyle = style.moon;
+/** 翘角的屋顶：cx 中心，y 屋檐底，hw 半宽，rh 屋顶高 */
+function roof(g: G, cx: number, y: number, hw: number, rh: number): void {
   g.beginPath();
-  g.arc(1500, 110, 44 * big, 0, Math.PI * 2);
+  g.moveTo(cx - hw * 1.3, y - rh * 0.55);
+  g.quadraticCurveTo(cx - hw * 1.05, y + rh * 0.12, cx - hw * 0.72, y + rh * 0.1);
+  g.lineTo(cx + hw * 0.72, y + rh * 0.1);
+  g.quadraticCurveTo(cx + hw * 1.05, y + rh * 0.12, cx + hw * 1.3, y - rh * 0.55);
+  g.quadraticCurveTo(cx + hw * 0.95, y - rh * 0.28, cx + hw * 0.6, y - rh);
+  g.lineTo(cx - hw * 0.6, y - rh);
+  g.quadraticCurveTo(cx - hw * 0.95, y - rh * 0.28, cx - hw * 1.3, y - rh * 0.55);
+  g.closePath();
   g.fill();
-
-  // 雾带：让层次之间有呼吸感
-  for (const [y, a] of [
-    [240, 0.42],
-    [290, 0.3],
-    [350, 0.2],
-  ] as const) {
-    const mist = g.createLinearGradient(0, y - 34, 0, y + 34);
-    mist.addColorStop(0, `rgba(${style.mist},0)`);
-    mist.addColorStop(0.5, `rgba(${style.mist},${a})`);
-    mist.addColorStop(1, `rgba(${style.mist},0)`);
-    g.fillStyle = mist;
-    g.fillRect(0, y - 34, W, 68);
-  }
-
-  // 层层叠叠的山脊，越远越浅越淡，越近越深；每层用整数倍频率保证首尾相接
-  const ridge = (x: number, k: number, phase: number) => Math.sin((2 * Math.PI * k * x) / W + phase);
-  for (let layer = 0; layer < 4; layer++) {
-    const base = 300 + layer * 52;
-    const ph = layer * 1.7;
-    g.fillStyle = style.ridges[layer]!;
+  // 屋脊和两端的鸱吻
+  g.fillRect(cx - hw * 0.64, y - rh - 0.08, hw * 1.28, 0.1);
+  for (const s of [-1, 1]) {
     g.beginPath();
-    g.moveTo(0, H);
-    for (let x = 0; x <= W; x += 8) {
-      const y = base - ridge(x, 3, ph) * 30 - ridge(x, 7, ph * 2) * 16 - ridge(x, 19, ph * 3) * 6 - (layer % 2) * 8;
-      g.lineTo(x, y);
+    g.moveTo(cx + s * hw * 0.62, y - rh - 0.05);
+    g.quadraticCurveTo(cx + s * hw * 0.7, y - rh - 0.35, cx + s * hw * 0.56, y - rh - 0.42);
+    g.lineTo(cx + s * hw * 0.58, y - rh - 0.05);
+    g.fill();
+  }
+}
+
+/** 殿堂：几根柱子、栏杆、一层或两层屋顶 */
+function hall(g: G, R: () => number, cx: number, s: number, tiers: number, detail: boolean): void {
+  const hw = 2.2 * s;
+  const bodyH = 2.3 * s;
+  const top = -bodyH;
+  // 台基
+  g.fillRect(cx - hw * 1.05, -0.25 * s, hw * 2.1, 0.25 * s);
+  // 柱子
+  for (let i = -2; i <= 2; i++) g.fillRect(cx + i * hw * 0.42 - 0.09 * s, top, 0.18 * s, bodyH);
+  // 墙体半透明
+  g.save();
+  g.globalAlpha *= 0.45;
+  g.fillRect(cx - hw * 0.85, top, hw * 1.7, bodyH);
+  g.restore();
+  // 栏杆
+  g.fillRect(cx - hw * 0.98, top + bodyH * 0.55, hw * 1.96, 0.07 * s);
+  if (detail) {
+    for (let x = cx - hw * 0.98; x < cx + hw * 0.98; x += 0.24 * s) g.fillRect(x, top + bodyH * 0.55, 0.05 * s, bodyH * 0.2);
+    g.fillRect(cx - hw * 0.98, top + bodyH * 0.75, hw * 1.96, 0.06 * s);
+    // 斗拱
+    for (let x = cx - hw * 0.85; x < cx + hw * 0.85; x += 0.3 * s) g.fillRect(x, top - 0.16 * s, 0.18 * s, 0.16 * s);
+  }
+  roof(g, cx, top - 0.16 * s, hw, 1.1 * s);
+  let y = top - 1.26 * s;
+  let w = hw;
+  for (let t = 1; t < tiers; t++) {
+    w *= 0.72;
+    const h = 1.1 * s;
+    g.fillRect(cx - w * 0.75, y - h, w * 1.5, h);
+    if (detail) for (let x = cx - w * 0.7; x < cx + w * 0.7; x += 0.28 * s) g.fillRect(x, y - h - 0.12 * s, 0.16 * s, 0.12 * s);
+    roof(g, cx, y - h - 0.12 * s, w, 0.85 * s);
+    y -= h + 0.97 * s;
+  }
+  // 屋檐下挂的灯笼
+  if (detail && R() < 0.7) {
+    for (const s2 of [-1, 1]) {
+      const lx = cx + s2 * hw * 0.8;
+      g.fillRect(lx - 0.01 * s, top - 0.1 * s, 0.02 * s, 0.4 * s);
+      g.beginPath();
+      g.ellipse(lx, top + 0.45 * s, 0.13 * s, 0.18 * s, 0, 0, Math.PI * 2);
+      g.fill();
     }
-    g.lineTo(W, H);
+  }
+}
+
+/** 塔：一层层收窄的塔身和屋檐 */
+function pagoda(g: G, cx: number, s: number, tiers: number): void {
+  let y = 0;
+  let w = 1.1 * s;
+  g.fillRect(cx - w, -0.2 * s, w * 2, 0.2 * s);
+  for (let i = 0; i < tiers; i++) {
+    const h = (i === 0 ? 1.2 : 0.75) * s;
+    g.fillRect(cx - w * 0.6, y - h, w * 1.2, h);
+    roof(g, cx, y - h, w, 0.55 * s);
+    y -= h + 0.45 * s;
+    w *= 0.82;
+  }
+  g.fillRect(cx - 0.04 * s, y - 0.9 * s, 0.08 * s, 0.9 * s);
+}
+
+/** 连绵的远山，用整数倍频率的正弦叠起来 */
+function ridge(g: G, R: () => number, x0: number, x1: number, base: number, amp: number): void {
+  const ph = R() * 10;
+  g.beginPath();
+  g.moveTo(x0, 1);
+  for (let x = x0; x <= x1; x += 0.25) {
+    const y = base - amp * (0.55 + 0.45 * Math.sin(x * 0.21 + ph)) - amp * 0.35 * Math.sin(x * 0.67 + ph * 2) - amp * 0.12 * Math.sin(x * 1.9 + ph);
+    g.lineTo(x, y);
+  }
+  g.lineTo(x1, 1);
+  g.closePath();
+  g.fill();
+}
+
+/** 竹子：一节一节的竿，加几簇竹叶 */
+function bamboo(g: G, R: () => number, x: number, h: number, w: number): void {
+  const lean = (R() - 0.5) * 0.08;
+  for (let y = 0; y > -h; y -= 0.9) {
+    const top = Math.max(-h, y - 0.85);
+    g.beginPath();
+    g.moveTo(x + y * lean - w / 2, y);
+    g.lineTo(x + top * lean - w / 2, top);
+    g.lineTo(x + top * lean + w / 2, top);
+    g.lineTo(x + y * lean + w / 2, y);
+    g.fill();
+  }
+  for (let i = 0; i < 4; i++) {
+    const ly = -h * (0.45 + R() * 0.5);
+    const lx = x + ly * lean;
+    for (let j = 0; j < 4; j++) {
+      const a = (R() - 0.5) * 1.6 + (R() < 0.5 ? 0 : Math.PI);
+      const L = 0.5 + R() * 0.5;
+      g.beginPath();
+      g.moveTo(lx, ly);
+      g.quadraticCurveTo(lx + Math.cos(a) * L * 0.5, ly + Math.sin(a) * L * 0.3 - 0.05, lx + Math.cos(a) * L, ly + Math.sin(a) * L * 0.5 + 0.15);
+      g.quadraticCurveTo(lx + Math.cos(a) * L * 0.5, ly + Math.sin(a) * L * 0.3 + 0.07, lx, ly);
+      g.fill();
+    }
+  }
+}
+
+/** 一簇枫叶：很多小星形的叶子叠成一团 */
+function mapleCluster(g: G, R: () => number, cx: number, cy: number, r: number, color: string, dark: string): void {
+  for (let i = 0; i < 60; i++) {
+    const a = R() * Math.PI * 2;
+    const d = Math.sqrt(R()) * r;
+    const x = cx + Math.cos(a) * d;
+    const y = cy + Math.sin(a) * d * 0.6;
+    const s = 0.12 + R() * 0.14;
+    g.fillStyle = R() < 0.3 ? dark : color;
+    g.beginPath();
+    for (let k = 0; k < 10; k++) {
+      const aa = (k / 10) * Math.PI * 2 + a;
+      const rr = k % 2 ? s * 0.45 : s;
+      g.lineTo(x + Math.cos(aa) * rr, y + Math.sin(aa) * rr);
+    }
     g.closePath();
     g.fill();
   }
+}
 
-  // 各场景的剪影，放在画面的几个固定角度上
-  g.fillStyle = style.silhouette;
-  if (room === 0) {
-    // 山门后的飞檐
-    for (const x of [300, 1400]) {
+function stoneLantern(g: G, x: number, s: number): void {
+  g.fillRect(x - 0.22 * s, -0.12 * s, 0.44 * s, 0.12 * s);
+  g.fillRect(x - 0.08 * s, -1.0 * s, 0.16 * s, 0.9 * s);
+  g.fillRect(x - 0.25 * s, -1.4 * s, 0.5 * s, 0.4 * s);
+  g.beginPath();
+  g.moveTo(x - 0.45 * s, -1.4 * s);
+  g.lineTo(x + 0.45 * s, -1.4 * s);
+  g.lineTo(x, -1.85 * s);
+  g.fill();
+}
+
+/** 山门牌坊：两根大柱、两道横梁、一层屋顶 */
+function gate(g: G, cx: number, s: number): void {
+  const hw = 2.4 * s;
+  for (const sx of [-1, 1]) g.fillRect(cx + sx * hw - 0.2 * s, -4.2 * s, 0.4 * s, 4.2 * s);
+  g.fillRect(cx - hw * 1.12, -3.5 * s, hw * 2.24, 0.25 * s);
+  g.fillRect(cx - hw * 1.05, -4.25 * s, hw * 2.1, 0.32 * s);
+  roof(g, cx, -4.35 * s, hw * 0.95, 0.9 * s);
+  g.fillRect(cx - 0.45 * s, -3.25 * s, 0.9 * s, 0.6 * s);
+}
+
+/** 近景：从画面上方压下来的大屋檐一角 */
+function eaveCorner(g: G, x: number, dir: number, s: number): void {
+  const top = -9.5 * s;
+  g.beginPath();
+  g.moveTo(x - dir * 0.5, top);
+  g.lineTo(x + dir * 4.2 * s, top);
+  g.quadraticCurveTo(x + dir * 5.2 * s, -6.5 * s, x + dir * 6.4 * s, -6.3 * s);
+  g.quadraticCurveTo(x + dir * 5.0 * s, -6.0 * s, x + dir * 3.0 * s, -6.2 * s);
+  g.lineTo(x - dir * 0.5, -6.2 * s);
+  g.closePath();
+  g.fill();
+  // 椽子
+  g.save();
+  g.globalAlpha *= 0.7;
+  for (let i = 0; i < 9; i++) g.fillRect(x + dir * (0.2 + i * 0.36) * s - 0.06 * s, -6.2 * s, 0.12 * s, 0.32 * s);
+  g.restore();
+  // 柱子和栏杆
+  g.fillRect(x + dir * 1.2 * s - 0.25 * s, -6.2 * s, 0.5 * s, 6.2 * s);
+  g.fillRect(x + dir * 3.2 * s - 0.2 * s, -6.2 * s, 0.4 * s, 6.2 * s);
+  g.fillRect(x - dir * 0.5, -2.1 * s, dir * 4.4 * s + dir * 0.5, 0.12 * s);
+  for (let i = 0; i < 9; i++) g.fillRect(x + dir * (0.1 + i * 0.45) * s - 0.04 * s, -2.1 * s, 0.08 * s, 1.2 * s);
+  g.fillRect(x - dir * 0.5, -1.0 * s, dir * 4.4 * s + dir * 0.5, 0.1 * s);
+}
+
+function buddha(g: G, cx: number, s: number): void {
+  g.beginPath();
+  g.ellipse(cx, -1.2 * s, 2.6 * s, 1.4 * s, 0, Math.PI, Math.PI * 2);
+  g.fill();
+  g.fillRect(cx - 1.4 * s, -4.2 * s, 2.8 * s, 3.1 * s);
+  g.beginPath();
+  g.arc(cx, -4.9 * s, 0.85 * s, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.arc(cx, -5.7 * s, 0.35 * s, 0, Math.PI * 2);
+  g.fill();
+  // 背光
+  g.save();
+  g.globalAlpha *= 0.35;
+  g.beginPath();
+  g.arc(cx, -4.6 * s, 2.3 * s, 0, Math.PI * 2);
+  g.fill();
+  g.restore();
+}
+
+/** 大殿的帷幔：从梁上垂下来，每一幅往两边收拢，中间留出空档能看到殿里 */
+function curtains(g: G, x0: number, x1: number, h: number): void {
+  const bay = 9;
+  for (let x = x0; x < x1; x += bay) {
+    // 顶上一条波浪形的横幔
+    g.beginPath();
+    g.moveTo(x, -h);
+    for (let i = 0; i < 4; i++) g.quadraticCurveTo(x + (i + 0.5) * (bay / 4), -h + 1.1, x + (i + 1) * (bay / 4), -h);
+    g.closePath();
+    g.fill();
+    // 左右两幅收到柱边，用细绳束住，下摆散开
+    for (const side of [0, 1]) {
+      const edge = side === 0 ? x : x + bay;
+      const d = side === 0 ? 1 : -1;
+      const tie = -h * 0.42;
       g.beginPath();
-      g.moveTo(x - 160, 300);
-      g.quadraticCurveTo(x, 250, x + 160, 300);
-      g.lineTo(x + 128, 318);
-      g.lineTo(x - 128, 318);
+      g.moveTo(edge, -h);
+      g.lineTo(edge + d * 1.9, -h);
+      g.quadraticCurveTo(edge + d * 1.2, -h * 0.62, edge + d * 0.45, tie);
+      g.quadraticCurveTo(edge + d * 0.7, tie * 0.5, edge + d * 0.95, -0.2);
+      g.lineTo(edge, -0.2);
       g.closePath();
       g.fill();
+      // 褶子：几条略深的竖纹
+      g.save();
+      g.globalAlpha *= 0.35;
+      g.fillStyle = "#000";
+      for (let k = 1; k < 4; k++) {
+        const fx = edge + d * 0.55 * k;
+        g.fillRect(Math.min(fx, fx + d * 0.08), -h, 0.08, h * 0.5);
+      }
+      g.restore();
     }
-  } else if (room === 1) {
-    // 竹林剪影
-    for (let x = 0; x < W; x += 22) {
-      g.fillRect(x + ((x * 37) % 9), 170 + ((x * 53) % 60), 6, 340);
-    }
-  } else if (room === 2) {
-    // 古塔
-    g.fillRect(990, 150, 84, 362);
-    for (let i = 0; i < 5; i++) {
-      g.fillRect(975 - i * 4, 170 + i * 60, 114 + i * 8, 14);
-    }
-  } else if (room === 4) {
-    // 佛像剪影
-    g.beginPath();
-    g.arc(1024, 220, 60, 0, Math.PI * 2);
-    g.fill();
-    g.fillRect(964, 270, 120, 160);
-    g.beginPath();
-    g.moveTo(812, H);
-    g.quadraticCurveTo(1024, 250, 1236, H);
-    g.fill();
   }
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
-  return tex;
 }
 
-/** 水面的涟漪纹理，用来做远处的河或湖 */
-function waterTexture(color: string): THREE.CanvasTexture {
-  const c = document.createElement("canvas");
-  c.width = 512;
-  c.height = 512;
-  const g = c.getContext("2d")!;
-  g.fillStyle = color;
-  g.fillRect(0, 0, 512, 512);
-  g.strokeStyle = "rgba(170,220,235,0.22)";
-  g.lineWidth = 2;
-  for (let i = 0; i < 90; i++) {
-    const y = (i * 37) % 512;
-    const x = (i * 83) % 512;
-    g.beginPath();
-    g.moveTo(x, y);
-    g.quadraticCurveTo(x + 30, y - 4, x + 60, y);
-    g.stroke();
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  return tex;
+// ================= 一层离屏画布 =================
+
+/** 每个世界单位画多少像素 */
+const RES = 40;
+
+interface Layer {
+  canvas: HTMLCanvasElement;
+  /** 视差：1 表示和地面一起动，越小越远 */
+  p: number;
+  /** 画布左边对应的层坐标 */
+  x0: number;
+  /** 画布里地平线所在的像素行 */
+  baseRow: number;
+  /** 这层的地平线对应的有效高度 */
+  base: number;
 }
 
-function tileFloor(room: number): THREE.CanvasTexture {
-  const c = document.createElement("canvas");
-  c.width = 256;
-  c.height = 256;
-  const g = c.getContext("2d")!;
-  const base = room === 4 ? "#2a1620" : room === 3 ? "#1f2629" : room === 1 ? "#1b2c2c" : "#222e32";
-  g.fillStyle = base;
-  g.fillRect(0, 0, 256, 256);
-  g.strokeStyle = "rgba(0,0,0,0.5)";
-  g.lineWidth = 4;
-  for (let i = 0; i <= 256; i += 64) {
-    g.beginPath();
-    g.moveTo(i, 0);
-    g.lineTo(i, 256);
-    g.moveTo(0, i);
-    g.lineTo(256, i);
-    g.stroke();
-  }
-  for (let i = 0; i < 200; i++) {
-    g.fillStyle = Math.random() < 0.5 ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.12)";
-    g.fillRect(Math.random() * 256, Math.random() * 256, 6, 6);
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
+function makeLayer(p: number, x0: number, x1: number, up: number, down: number, base: number, paint: (g: G, R: () => number) => void, seed: number): Layer {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.min(4096, Math.ceil((x1 - x0) * RES));
+  canvas.height = Math.ceil((up + down) * RES);
+  const g = canvas.getContext("2d")!;
+  const R = rng(seed);
+  g.setTransform(RES, 0, 0, RES, -x0 * RES, up * RES);
+  paint(g, R);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  return { canvas, p, x0, baseRow: up * RES, base };
 }
 
 // ================= 场景 =================
 
-/** 一套场景的配色。天色、雾、远山、枫叶等都从这里取值 */
-export interface MapStyle {
-  /** 天色：顶、中、低 */
-  sky: [string, string, string];
-  /** 月亮颜色 */
-  moon: string;
-  /** 远山四层的颜色，从远到近 */
-  ridges: [string, string, string, string];
-  /** 雾带的 rgb 值，格式 "r,g,b" */
-  mist: string;
-  /** 剪影的颜色（rgba） */
-  silhouette: string;
-  /** 雾的颜色（场景远处淡化的颜色） */
-  fog: number;
-  hemi: number;
-  hemiSky: number;
-  hemiGround: number;
-  /** 水面的底色 */
-  water: string;
-  /** 枫叶、竹叶等飘落物的颜色 */
-  leaf: number;
-  /** 是否有红枫树冠 */
-  canopy: boolean;
-}
-
-export const MAP_STYLES: Record<"maple" | "bamboo" | "bloodmoon", MapStyle> = {
-  maple: {
-    sky: ["#030c12", "#0b2530", "#16404c"],
-    moon: "#f4e8d0",
-    ridges: ["#1d4a55", "#16393f", "#0e2a30", "#071a1e"],
-    mist: "150,200,205",
-    silhouette: "rgba(3,12,14,0.95)",
-    fog: 0x123642,
-    hemi: 0.95,
-    hemiSky: 0x7fb8c4,
-    hemiGround: 0x1c2a2c,
-    water: "#1f5a66",
-    leaf: 0xb3262e,
-    canopy: true,
-  },
-  bamboo: {
-    sky: ["#02060c", "#0a1a30", "#132c48"],
-    moon: "#eaf2ff",
-    ridges: ["#1b3350", "#142740", "#0c1a2c", "#06101c"],
-    mist: "130,160,200",
-    silhouette: "rgba(2,6,12,0.95)",
-    fog: 0x0c1d33,
-    hemi: 0.85,
-    hemiSky: 0x7a9ccc,
-    hemiGround: 0x141a24,
-    water: "#1d3a58",
-    leaf: 0x6fa08a,
-    canopy: false,
-  },
-  bloodmoon: {
-    sky: ["#0a030a", "#2a0c18", "#4a1424"],
-    moon: "#c4283a",
-    ridges: ["#3a1a2a", "#2a1020", "#1c0a16", "#10060c"],
-    mist: "160,90,110",
-    silhouette: "rgba(12,4,10,0.95)",
-    fog: 0x2a0f1c,
-    hemi: 0.8,
-    hemiSky: 0xa86080,
-    hemiGround: 0x1c0a10,
-    water: "#3a1020",
-    leaf: 0xa3202a,
-    canopy: false,
-  },
-};
-
 export interface Theme {
   petals: Petals;
-  /** 每帧调用，让灯笼晃动、旗子飘动、花瓣落下 */
+  /** 每帧调用，让花瓣落下、灯笼晃动 */
   update(dt: number, t: number): void;
+  /** 画背景（天、远山、寺庙、地面、出口），dim 是大招时压暗的程度 0~1 */
+  drawBack(g: CanvasRenderingContext2D, v: View, dim: number): void;
+  /** 画前景（压在角色上面的剪影、花瓣、纸纹、暗角） */
+  drawFront(g: CanvasRenderingContext2D, v: View): void;
+  setDoorOpen(open: boolean): void;
   dispose(): void;
-  fog: number;
-  sky: number;
-  ground: number;
-  hemi: number;
-  /** 血煞大殿的血池，用来做脉动 */
-  pulse: THREE.Object3D[];
-  /** 雾的起止距离，户外远一些，室内近一些 */
-  fogNear: number;
-  fogFar: number;
 }
 
-const PALETTE = {
-  red: 0xb8222a,
-  lacquer: 0x4a1418,
-  wood: 0x3a2818,
-  stone: 0x55554f,
-  bamboo: 0x2f6a42,
-  paper: 0xf0e4c4,
-  lantern: 0xffa04a,
-  gold: 0xe0b050,
-};
+/** 远处的地平线：纵深 -3.6 处（比走位范围再远一点） */
+const HORIZON = 3.6 * DEPTH;
 
-/** 在 group 里搭好当前房间的场景，返回句柄用来每帧动画和释放 */
-export function buildTheme(group: THREE.Group, room: number, width: number, doorMat: THREE.Material, style: MapStyle): Theme {
-  const owned: { dispose(): void }[] = [];
-  const track = <T extends { dispose(): void }>(o: T): T => {
-    owned.push(o);
-    return o;
-  };
-  const add = (o: THREE.Object3D) => group.add(o);
-  const box = (w: number, h: number, d: number, color: number, emissive = 0) => {
-    const m = track(new THREE.MeshStandardMaterial({ color, roughness: 0.85, emissive: new THREE.Color(color).multiplyScalar(emissive) }));
-    return new THREE.Mesh(track(new THREE.BoxGeometry(w, h, d)), m);
-  };
-  const glowMat = (color: number, k: number) => track(new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k), toneMapped: false }));
-  const lights: THREE.PointLight[] = [];
-  const pulse: THREE.Object3D[] = [];
-  const sway: { obj: THREE.Object3D; base: number; amp: number; speed: number }[] = [];
-  const bob: { obj: THREE.Object3D; base: number; amp: number; speed: number }[] = [];
+/** 搭好当前房间的场景 */
+export function buildTheme(room: number, width: number, style: MapStyle): Theme {
+  const X0 = -16;
+  const farCol = css(style.far);
+  const midCol = css(style.mid);
+  const nearCol = css(style.near);
+  const boss = room === 4;
+  const span = (p: number) => width * p + 32;
 
-  const outdoor = room <= 2;
-  const cx = width / 2;
-
-  // 地面：石板或木地板，足够大，第三人称镜头绕着转也不露边
-  const floorTex = tileFloor(room);
-  floorTex.repeat.set(FLOOR_SIZE / 4, FLOOR_SIZE / 4);
-  const floor = new THREE.Mesh(
-    track(new THREE.PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE)),
-    track(new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.9, metalness: 0.02 })),
+  // ---- 远景：山和塔，雾里很淡 ----
+  const far = makeLayer(
+    0.18,
+    X0,
+    X0 + span(0.18),
+    9,
+    1,
+    HORIZON,
+    (g, R) => {
+      g.fillStyle = css(mixHex(style.far, 0xffffff, style.night ? 0 : 0.25));
+      ridge(g, R, X0, X0 + span(0.18), -0.6, 2.4);
+      g.fillStyle = farCol;
+      ridge(g, R, X0, X0 + span(0.18), 0, 1.4);
+      if (room === 1) {
+        for (let x = X0; x < X0 + span(0.18); x += 0.5 + R() * 0.5) bamboo(g, R, x, 4 + R() * 3, 0.08);
+      } else if (!boss) {
+        for (let x = X0 + 3; x < X0 + span(0.18); x += 7 + R() * 6) pagoda(g, x, 0.55 + R() * 0.25, 4 + Math.floor(R() * 3));
+      }
+    },
+    room * 13 + 1,
   );
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.set(cx, 0, 0);
-  add(floor);
 
-  // 环绕一圈的水墨山水天幕：镜头怎么转都能看到远山和天色
-  const pano = track(panorama(style, room));
-  const dome = new THREE.Mesh(
-    track(new THREE.CylinderGeometry(DOME_RADIUS, DOME_RADIUS, 72, 96, 1, true)),
-    track(new THREE.MeshBasicMaterial({ map: pano, side: THREE.BackSide, depthWrite: false, fog: false, toneMapped: false })),
+  // ---- 中景：殿堂、牌坊、竹林、佛像 ----
+  const mid = makeLayer(
+    0.45,
+    X0,
+    X0 + span(0.45),
+    9,
+    1,
+    HORIZON,
+    (g, R) => {
+      g.fillStyle = midCol;
+      const x1 = X0 + span(0.45);
+      if (room === 0) {
+        for (let x = X0 + 2; x < x1; x += 9 + R() * 4) hall(g, R, x, 0.9 + R() * 0.2, 1 + Math.floor(R() * 2), true);
+        gate(g, (width * 0.45) / 2 + 3, 1.05);
+      } else if (room === 1) {
+        for (let x = X0; x < x1; x += 0.6 + R() * 0.9) bamboo(g, R, x, 6 + R() * 3, 0.12 + R() * 0.06);
+      } else if (room === 2) {
+        for (let x = X0 + 3; x < x1; x += 8 + R() * 5) hall(g, R, x, 1 + R() * 0.25, 2, true);
+      } else if (room === 3) {
+        // 藏经楼里面：一整面书架墙和格子窗
+        g.fillRect(X0, -5.8, x1 - X0, 0.35);
+        for (let x = X0; x < x1; x += 3.2) {
+          g.save();
+          g.globalAlpha *= 0.55;
+          g.fillRect(x + 0.3, -5.2, 2.6, 5.2);
+          g.restore();
+          for (let r = 0; r < 5; r++) g.fillRect(x + 0.3, -5.2 + r * 1.05, 2.6, 0.08);
+          for (let c = 0; c < 9; c++) g.fillRect(x + 0.42 + c * 0.28, -5.0 + (c % 3) * 1.05, 0.12, 0.8);
+          g.fillRect(x, -5.8, 0.3, 5.8);
+        }
+      } else {
+        buddha(g, (width * 0.45) / 2 + 4, 1.4);
+        for (let x = X0; x < x1; x += 4.5) g.fillRect(x, -7, 0.45, 7);
+      }
+    },
+    room * 13 + 2,
   );
-  dome.position.set(cx, 18, 0);
-  add(dome);
 
-  // 中景远山：一圈低多边形山体，雾会把远处的淡掉，形成层次
-  const hills = track(new THREE.InstancedMesh(
-    track(new THREE.ConeGeometry(1, 1, 7, 1)),
-    track(new THREE.MeshStandardMaterial({ color: style.ridges[3]!, roughness: 1, metalness: 0 })),
-    HILL_COUNT,
-  ));
-  const hillDummy = new THREE.Object3D();
-  for (let i = 0; i < HILL_COUNT; i++) {
-    const a = (i / HILL_COUNT) * Math.PI * 2 + rand(-0.05, 0.05);
-    const r = 92 + rand(-6, 8);
-    const w = rand(12, 22);
-    const h = rand(14, 30);
-    hillDummy.position.set(cx + Math.cos(a) * r, h / 2 - 3, Math.sin(a) * r);
-    hillDummy.scale.set(w, h, w);
-    hillDummy.rotation.set(0, rand(0, Math.PI), 0);
-    hillDummy.updateMatrix();
-    hills.setMatrixAt(i, hillDummy.matrix);
-  }
-  hills.instanceMatrix.needsUpdate = true;
-  add(hills);
+  // ---- 近景：画面上方压下来的屋檐、柱子、帷幔 ----
+  const near = makeLayer(
+    0.78,
+    X0,
+    X0 + span(0.78),
+    10.5,
+    1,
+    HORIZON,
+    (g, R) => {
+      g.fillStyle = nearCol;
+      const x1 = X0 + span(0.78);
+      if (room === 1) {
+        for (let x = X0; x < x1; x += 2.2 + R() * 3) bamboo(g, R, x, 10, 0.22 + R() * 0.1);
+      } else if (room === 3) {
+        g.fillRect(X0, -9.6, x1 - X0, 1.0);
+        for (let x = X0; x < x1; x += 6 + R() * 2) {
+          g.fillRect(x, -9.6, 0.55, 9.6);
+          // 挂着的灯笼
+          g.fillRect(x + 2.8, -8.6, 0.03, 1.4);
+          g.beginPath();
+          g.ellipse(x + 2.8, -6.9, 0.32, 0.42, 0, 0, Math.PI * 2);
+          g.fill();
+        }
+      } else if (boss) {
+        g.save();
+        g.globalAlpha = 0.7;
+        g.fillStyle = css(mixHex(style.near, 0x6a0c14, 0.45));
+        curtains(g, X0, x1, 9.5);
+        g.restore();
+        g.fillStyle = nearCol;
+        g.fillRect(X0, -10.5, x1 - X0, 1.2);
+        // 帷幔之间的大柱子
+        for (let x = X0; x < x1; x += 9) g.fillRect(x - 0.35, -10.5, 0.7, 10.5);
+      } else {
+        for (let x = X0 + 2; x < x1; x += 13 + R() * 6) {
+          const dir = R() < 0.5 ? 1 : -1;
+          eaveCorner(g, x, dir, 1);
+        }
+        for (let x = X0 + 6; x < x1; x += 9 + R() * 5) stoneLantern(g, x, 0.9);
+      }
+    },
+    room * 13 + 3,
+  );
 
-  // 红枫树冠：挂在场地上方和身后，用低面数的球体拼成一片叶子，成本低
-  if (style.canopy && outdoor) {
-    const leafCount = 70;
-    const leaves = track(new THREE.InstancedMesh(
-      track(new THREE.IcosahedronGeometry(1, 0)),
-      track(new THREE.MeshStandardMaterial({ color: style.leaf, roughness: 0.8, emissive: new THREE.Color(style.leaf).multiplyScalar(0.12) })),
-      leafCount,
-    ));
-    const leafDummy = new THREE.Object3D();
-    for (let i = 0; i < leafCount; i++) {
-      leafDummy.position.set(rand(-2, width + 2), rand(7, 10), rand(-11, -4));
-      leafDummy.scale.set(rand(0.6, 1.4), rand(0.3, 0.6), rand(0.6, 1.2));
-      leafDummy.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3));
-      leafDummy.updateMatrix();
-      leaves.setMatrixAt(i, leafDummy.matrix);
+  // ---- 地面：远处浅、近处深，横着扫几笔墨 ----
+  const GROUND_TOP = HORIZON;
+  const GROUND_BOT = -4.6;
+  const groundCanvas = (() => {
+    const x0 = X0;
+    const x1 = width + 16;
+    const c = document.createElement("canvas");
+    c.width = Math.min(4096, Math.ceil((x1 - x0) * RES));
+    c.height = Math.ceil((GROUND_TOP - GROUND_BOT) * RES);
+    const g = c.getContext("2d")!;
+    const grd = g.createLinearGradient(0, 0, 0, c.height);
+    grd.addColorStop(0, css(style.ground[0]));
+    grd.addColorStop(0.35, css(mixHex(style.ground[0], style.ground[1], 0.45)));
+    grd.addColorStop(1, css(style.ground[1]));
+    g.fillStyle = grd;
+    g.fillRect(0, 0, c.width, c.height);
+    const R = rng(room * 17 + 5);
+    // 横向的墨痕和高光
+    for (let i = 0; i < 26; i++) {
+      const y = R() * c.height;
+      const x = R() * c.width;
+      const L = 200 + R() * 700;
+      const dark = R() < 0.6;
+      dryBrush(g, R, [x, y, x + L * 0.3, y - 6 + R() * 12, x + L * 0.7, y - 6 + R() * 12, x + L, y + (R() - 0.5) * 10], 6 + R() * 18, dark ? "#141210" : "#ffffff", dark ? 0.22 : 0.12, 18);
     }
-    leaves.instanceMatrix.needsUpdate = true;
-    add(leaves);
-  }
+    if (room === 0) {
+      // 山门前的石阶，在远处
+      g.fillStyle = "rgba(0,0,0,0.18)";
+      for (let i = 0; i < 4; i++) g.fillRect(0, (0.05 + i * 0.12) * RES, c.width, 2);
+    } else if (room === 3) {
+      g.strokeStyle = "rgba(0,0,0,0.25)";
+      g.lineWidth = 1.5;
+      for (let y = 6; y < c.height; y += 14 + y * 0.12) {
+        g.beginPath();
+        g.moveTo(0, y);
+        g.lineTo(c.width, y);
+        g.stroke();
+      }
+    } else if (boss) {
+      // 大殿中央的血池
+      const cx = (width / 2 - x0) * RES;
+      const cy = (GROUND_TOP - 0.1) * RES + 40;
+      const pool = g.createRadialGradient(cx, cy, 10, cx, cy, 160);
+      pool.addColorStop(0, "rgba(150,14,24,0.85)");
+      pool.addColorStop(1, "rgba(120,10,20,0)");
+      g.fillStyle = pool;
+      g.beginPath();
+      g.ellipse(cx, cy, 170, 48, 0, 0, Math.PI * 2);
+      g.fill();
+    }
+    roughen(g, R, c.width, c.height, 0.6);
+    return { canvas: c, x0 };
+  })();
 
-  // 户外的水面：放在场地身后，镜头能看到远处的河或湖
-  if (outdoor) {
-    const waterTex = track(waterTexture(style.water));
-    waterTex.repeat.set(FLOOR_SIZE / 16, 3);
-    const water = new THREE.Mesh(
-      track(new THREE.PlaneGeometry(FLOOR_SIZE, 52)),
-      track(new THREE.MeshStandardMaterial({ map: waterTex, color: 0xffffff, roughness: 0.16, metalness: 0.3 })),
-    );
-    water.rotation.x = -Math.PI / 2;
-    water.position.set(cx, 0.02, -35);
-    add(water);
-  }
+  // ---- 前景：最前面的草和碎石，比地面动得快 ----
+  const front = makeLayer(
+    1.28,
+    X0,
+    X0 + width * 1.28 + 32,
+    3.5,
+    1.5,
+    -2.4,
+    (g, R) => {
+      const x1 = X0 + width * 1.28 + 32;
+      g.fillStyle = css(mixHex(style.near, 0x000000, 0.35));
+      for (let x = X0; x < x1; x += 3 + R() * 7) {
+        // 一丛草
+        for (let k = 0; k < 7; k++) {
+          const bx = x + (R() - 0.5) * 0.8;
+          const h = 0.5 + R() * 1.1;
+          const lean = (R() - 0.5) * 0.7;
+          g.beginPath();
+          g.moveTo(bx - 0.05, 0.6);
+          g.quadraticCurveTo(bx + lean * 0.5, -h * 0.5, bx + lean, -h);
+          g.quadraticCurveTo(bx + lean * 0.4, -h * 0.4, bx + 0.06, 0.6);
+          g.fill();
+        }
+      }
+      if (style.maple && room !== 3) {
+        for (let x = X0 + 4; x < x1; x += 14 + R() * 10) mapleCluster(g, R, x, -0.6, 1.6, css(style.leaf), css(mixHex(style.leaf, 0x000000, 0.45)));
+      }
+    },
+    room * 13 + 4,
+  );
 
-  const lantern = (x: number, y: number, z: number, color: number, k = 1) => {
-    const g = new THREE.Group();
-    const body = new THREE.Mesh(track(new THREE.SphereGeometry(0.34, 14, 10)), glowMat(color, 2.2 * k));
-    body.scale.set(1, 1.3, 1);
-    const cap = box(0.5, 0.06, 0.5, PALETTE.lacquer);
-    cap.position.y = 0.5;
-    const base = box(0.5, 0.06, 0.5, PALETTE.lacquer);
-    base.position.y = -0.5;
-    g.add(body, cap, base);
-    g.position.set(x, y, z);
-    add(g);
-    const light = new THREE.PointLight(color, 7 * k, 12, 1.6);
-    light.position.set(x, y, z + 0.4);
-    add(light);
-    lights.push(light);
-    bob.push({ obj: g, base: y, amp: 0.08, speed: 1.4 + Math.random() });
-    return g;
-  };
+  // 红枫的树冠挂在近景上方（只有红枫配色）
+  const canopy = style.maple && room !== 3 && !boss
+    ? makeLayer(
+        0.85,
+        X0,
+        X0 + span(0.85),
+        10.5,
+        0.5,
+        HORIZON,
+        (g, R) => {
+          const x1 = X0 + span(0.85);
+          for (let x = X0; x < x1; x += 6 + R() * 7) {
+            g.fillStyle = css(mixHex(style.near, 0x000000, 0.2));
+            g.beginPath();
+            g.moveTo(x - 0.15, 0.5);
+            g.quadraticCurveTo(x + 0.4, -4, x - 0.2, -8.8);
+            g.lineTo(x + 0.25, -8.8);
+            g.quadraticCurveTo(x + 0.9, -4, x + 0.3, 0.5);
+            g.fill();
+            mapleCluster(g, R, x + 0.3, -9.2, 3.2, css(style.leaf), css(mixHex(style.leaf, 0x000000, 0.4)));
+          }
+        },
+        room * 13 + 6,
+      )
+    : null;
 
-  const banner = (x: number, z: number, h: number, color: number) => {
-    const m = track(new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, roughness: 0.9, emissive: new THREE.Color(color).multiplyScalar(0.12) }));
-    const mesh = new THREE.Mesh(track(new THREE.PlaneGeometry(0.5, h, 1, 4)), m);
-    mesh.position.set(x, h / 2 + 0.2, z);
-    add(mesh);
-    sway.push({ obj: mesh, base: 0, amp: 0.12, speed: 1.6 });
-    return mesh;
-  };
+  // 墨色擦边，让剪影边缘像毛笔画的
+  for (const l of [far, mid, near]) roughen(l.canvas.getContext("2d")!, rng(l.canvas.width), l.canvas.width, l.canvas.height, 1.2);
 
-  const incense = (x: number, z: number) => {
-    const burner = box(0.5, 0.45, 0.5, PALETTE.stone);
-    burner.position.set(x, 0.23, z);
-    add(burner);
-    const tip = new THREE.Mesh(track(new THREE.ConeGeometry(0.05, 0.25, 6)), glowMat(0xff9040, 2.5));
-    tip.position.set(x, 0.6, z);
-    add(tip);
-    sway.push({ obj: tip, base: 0.6, amp: 0.02, speed: 9 });
-  };
+  // ---- 光束：一张小图拉伸到全屏 ----
+  const rays = (() => {
+    const c = document.createElement("canvas");
+    c.width = 512;
+    c.height = 256;
+    const g = c.getContext("2d")!;
+    const R = rng(room + 99);
+    for (let i = 0; i < 8; i++) {
+      const x = -100 + R() * 520;
+      const w = 20 + R() * 70;
+      const grd = g.createLinearGradient(x, 0, x + 200, 256);
+      grd.addColorStop(0, "rgba(255,255,250,0.55)");
+      grd.addColorStop(1, "rgba(255,255,250,0)");
+      g.fillStyle = grd;
+      g.beginPath();
+      g.moveTo(x, -5);
+      g.lineTo(x + w, -5);
+      g.lineTo(x + w + 260, 256);
+      g.lineTo(x + 210, 256);
+      g.closePath();
+      g.fill();
+    }
+    return c;
+  })();
 
-  if (room === 0) {
-    // 山门：石阶、朱红门楼、两侧石灯
+  // ---- 天上的几道干笔 ----
+  const skyBrush = (() => {
+    const c = document.createElement("canvas");
+    c.width = 1024;
+    c.height = 300;
+    const g = c.getContext("2d")!;
+    const R = rng(room + 51);
+    const col = style.night ? "#000000" : "#6c6863";
     for (let i = 0; i < 4; i++) {
-      const step = box(width + 10, 0.2, 1.4, PALETTE.stone);
-      step.position.set(width / 2, 0.1 + i * 0.1, -4.5 + i * 0.3);
-      add(step);
+      const y = 30 + R() * 200;
+      dryBrush(g, R, [-60, y, 300, y - 40 + R() * 80, 700, y - 40 + R() * 80, 1100, y + (R() - 0.5) * 60], 30 + R() * 50, col, 0.22, 40);
     }
-    for (const x of [width * 0.18, width * 0.82]) {
-      for (const z of [-4.6, -3.8]) {
-        const pillar = box(0.6, 5, 0.6, PALETTE.red);
-        pillar.position.set(x, 2.5, z);
-        add(pillar);
-      }
-    }
-    const roof = box(width * 0.7, 0.5, 2.2, PALETTE.lacquer);
-    roof.position.set(width / 2, 5.4, -4.2);
-    add(roof);
-    lantern(width * 0.18, 3.6, -4.2, PALETTE.lantern);
-    lantern(width * 0.82, 3.6, -4.2, PALETTE.lantern);
-    lantern(width * 0.5, 3.0, -5.6, PALETTE.lantern, 0.7);
-    banner(width * 0.36, -5.5, 2.6, PALETTE.red);
-    banner(width * 0.64, -5.5, 2.6, PALETTE.red);
-    // 石灯笼
-    for (const x of [6, width - 8]) {
-      const base = box(0.5, 1.2, 0.5, PALETTE.stone);
-      base.position.set(x, 0.6, 3.6);
-      add(base);
-      lantern(x, 1.7, 3.6, PALETTE.lantern, 0.6);
-    }
-  } else if (room === 1) {
-    // 竹林：很多细竹竿，前后分层，月光透过来
-    const stalkGeo = track(new THREE.CylinderGeometry(0.09, 0.11, 1, 6));
-    const stalkMat = track(new THREE.MeshStandardMaterial({ color: PALETTE.bamboo, roughness: 0.7 }));
-    const count = 70;
-    const inst = new THREE.InstancedMesh(stalkGeo, stalkMat, count);
-    const dummy = new THREE.Object3D();
-    for (let i = 0; i < count; i++) {
-      const front = i % 5 === 0;
-      const h = rand(6, 9);
-      dummy.position.set(rand(-2, width + 2), h / 2 - 0.2, front ? rand(3.6, 5.2) : rand(-7, -4.6));
-      dummy.scale.set(1, h, 1);
-      dummy.rotation.set(rand(-0.03, 0.03), 0, rand(-0.03, 0.03));
-      dummy.updateMatrix();
-      inst.setMatrixAt(i, dummy.matrix);
-    }
-    inst.instanceMatrix.needsUpdate = true;
-    add(inst);
-    // 林间小径上的石板和一座亭子
-    const pavilion = box(3, 0.4, 2.4, PALETTE.wood);
-    pavilion.position.set(width * 0.6, 0.9, -3.4);
-    add(pavilion);
-    for (const dx of [-1.3, 1.3]) {
-      const post = box(0.2, 2.4, 0.2, PALETTE.lacquer);
-      post.position.set(width * 0.6 + dx, 2.1, -3.4);
-      add(post);
-    }
-    lantern(width * 0.6, 3.2, -3.4, PALETTE.lantern, 0.6);
-    lights.push(Object.assign(new THREE.PointLight(0xa8c8ff, 6, 18, 1.2), { position: new THREE.Vector3(width * 0.3, 8, -2) }));
-    add(lights[lights.length - 1]!);
-  } else if (room === 2) {
-    // 古寺庭院：石灯笼、香炉、经幡、两侧的佛殿台阶
-    for (const x of [4, width * 0.35, width * 0.65, width - 4]) {
-      const base = box(0.6, 1.6, 0.6, PALETTE.stone);
-      base.position.set(x, 0.8, -4);
-      add(base);
-      lantern(x, 2.2, -4, PALETTE.lantern, 0.8);
-      incense(x + 0.9, -3.4);
-    }
-    for (const x of [width * 0.2, width * 0.8]) banner(x, -5.2, 3.6, 0xc8a050);
-    const hall = box(width * 0.6, 3, 2, PALETTE.wood);
-    hall.position.set(width / 2, 1.5, -7);
-    add(hall);
-    const roof = box(width * 0.66, 0.4, 3, PALETTE.lacquer);
-    roof.position.set(width / 2, 3.2, -7);
-    add(roof);
-  } else if (room === 3) {
-    // 藏经楼：木柱、书架、蜡烛
-    for (let x = 2; x < width; x += 6) {
-      const pillar = box(0.5, 6, 0.5, PALETTE.wood);
-      pillar.position.set(x, 3, -4.2);
-      add(pillar);
-    }
-    for (let x = 4; x < width - 2; x += 5) {
-      const shelf = box(2.6, 3, 0.8, PALETTE.lacquer);
-      shelf.position.set(x, 1.5, -6.2);
-      add(shelf);
-      for (let r = 0; r < 3; r++) {
-        const book = box(2.2, 0.08, 0.5, [0x7a2a2a, 0x2a4a6a, 0x6a6a2a][r]!);
-        book.position.set(x, 0.6 + r * 0.9, -5.7);
-        add(book);
-      }
-    }
-    for (const x of [width * 0.3, width * 0.7]) {
-      const candle = box(0.16, 0.6, 0.16, PALETTE.paper);
-      candle.position.set(x, 0.3, -2.8);
-      add(candle);
-      const flame = new THREE.Mesh(track(new THREE.ConeGeometry(0.07, 0.2, 6)), glowMat(0xffc060, 3));
-      flame.position.set(x, 0.7, -2.8);
-      add(flame);
-      sway.push({ obj: flame, base: 0.7, amp: 0.03, speed: 11 });
-      lights.push(Object.assign(new THREE.PointLight(0xffb060, 5, 9, 1.8), { position: new THREE.Vector3(x, 1.2, -2.6) }));
-      add(lights[lights.length - 1]!);
-    }
-  } else {
-    // 血煞大殿：红色帷幔、佛像剪影、血池
-    for (let x = 1; x < width; x += 4) {
-      const curtain = banner(x, -6.5, 6, 0x6a0c14);
-      curtain.position.y = 3.2;
-      curtain.material && ((curtain.material as THREE.MeshStandardMaterial).emissive = new THREE.Color(0x200004));
-    }
-    const pool = new THREE.Mesh(track(new THREE.CircleGeometry(3.2, 40)), glowMat(0x8a0a14, 1.1));
-    pool.rotation.x = -Math.PI / 2;
-    pool.position.set(width * 0.5, 0.03, 0.4);
-    add(pool);
-    pulse.push(pool);
-    for (const x of [6, width - 6]) {
-      lantern(x, 3.4, -3, 0xff3a2a, 1.1);
-    }
-    const throne = box(2.8, 3.4, 1.6, PALETTE.lacquer);
-    throne.position.set(width - 2.4, 1.7, -4.5);
-    add(throne);
-  }
+    return c;
+  })();
 
-  // 右端的出口（血煞大殿没有出口）
-  if (room !== 4) {
-    const portal = new THREE.Mesh(track(new THREE.PlaneGeometry(4.6, 4.2)), doorMat);
-    portal.rotation.y = -Math.PI / 2;
-    portal.position.set(width + 0.6, 2.1, 0);
-    add(portal);
-    const frame = box(0.5, 4.6, 6.4, PALETTE.lacquer);
-    frame.position.set(width + 0.9, 2.3, 0);
-    add(frame);
-  }
+  const grain = paperGrain();
+  let grainPattern: CanvasPattern | null = null;
+  let doorOpen = false;
 
-  // 夜雾：环境光偏冷，雾的颜色取自所选场景
-  const hemi = room === 3 ? style.hemi * 0.85 : style.hemi;
-  const fog = style.fog;
-  const sky = style.hemiSky;
-  const ground = style.hemiGround;
+  const petals = new Petals();
+  petals.seedAmbient(room === 3 ? 30 : 70, style.leaf, { x0: -2, x1: width + 2, z0: -3, z1: 3, top: 7 });
 
-  const petals = track(new Petals(260));
-  const petalColor = style.leaf;
-  petals.seedAmbient(room === 1 ? 110 : 150, petalColor, { x0: -2, x1: width + 2, z0: -4, z1: 4, top: 7 });
-  add(petals.mesh);
+  /** 按视差把一层贴到屏幕上 */
+  const drawLayer = (g: CanvasRenderingContext2D, v: View, l: Layer) => {
+    const kl = v.S * (1 + (v.zoom - 1) * l.p);
+    const camY0 = 0.28 * (v.H / v.S);
+    const camYp = camY0 + (v.camY - camY0) * l.p;
+    const scale = kl / RES;
+    const dx = v.W / 2 + v.offX * l.p + (l.x0 - v.camX * l.p) * kl;
+    const baseY = v.H / 2 + v.offY * l.p - (l.base - camYp) * kl;
+    const dy = baseY - l.baseRow * scale;
+    // 只取屏幕上看得见的那一段
+    const sx0 = Math.max(0, Math.floor(-dx / scale));
+    const sx1 = Math.min(l.canvas.width, Math.ceil((v.W - dx) / scale));
+    if (sx1 <= sx0) return;
+    g.drawImage(l.canvas, sx0, 0, sx1 - sx0, l.canvas.height, dx + sx0 * scale, dy, (sx1 - sx0) * scale, l.canvas.height * scale);
+  };
+
+  const fogBand = (g: CanvasRenderingContext2D, y: number, h: number, a: number, W: number) => {
+    const grd = g.createLinearGradient(0, y - h, 0, y + h);
+    grd.addColorStop(0, `rgba(${style.fog},0)`);
+    grd.addColorStop(0.5, `rgba(${style.fog},${a})`);
+    grd.addColorStop(1, `rgba(${style.fog},0)`);
+    g.fillStyle = grd;
+    g.fillRect(0, y - h, W, h * 2);
+  };
 
   return {
     petals,
-    fog,
-    fogNear: outdoor ? 45 : 25,
-    fogFar: outdoor ? 150 : 90,
-    sky,
-    ground,
-    hemi,
-    pulse,
-    update(dt: number, t: number) {
-      for (const b of bob) b.obj.position.y = b.base + Math.sin(t * b.speed) * b.amp;
-      for (const s of sway) {
-        if (s.speed > 5) s.obj.scale.set(1, 1 + Math.sin(t * s.speed) * 0.2, 1);
-        else s.obj.rotation.z = Math.sin(t * s.speed) * s.amp;
+    update(dt, t) {
+      petals.update(dt, t);
+    },
+    setDoorOpen(open) {
+      doorOpen = open;
+    },
+    drawBack(g, v, dim) {
+      const W = v.W;
+      const H = v.H;
+      // 天色
+      const sky = g.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, style.sky[0]);
+      sky.addColorStop(0.55, style.sky[1]);
+      sky.addColorStop(1, style.sky[2]);
+      g.fillStyle = sky;
+      g.fillRect(0, 0, W, H);
+      // 太阳或月亮，几乎不随镜头移动
+      if (style.orb) {
+        const ox = W * 0.72 - v.camX * v.S * 0.03;
+        const oy = H * 0.2;
+        const r = style.orb.r * v.S;
+        const halo = g.createRadialGradient(ox, oy, r * 0.5, ox, oy, r * 3.2);
+        halo.addColorStop(0, style.orb.color + "88");
+        halo.addColorStop(1, style.orb.color + "00");
+        g.fillStyle = halo;
+        g.fillRect(ox - r * 3.2, oy - r * 3.2, r * 6.4, r * 6.4);
+        g.fillStyle = style.orb.color;
+        g.beginPath();
+        g.arc(ox, oy, r, 0, Math.PI * 2);
+        g.fill();
       }
-      for (const l of lights) l.intensity = (l.userData.base ??= l.intensity) * (0.9 + Math.sin(t * 13 + l.position.x) * 0.1);
-      for (const p of pulse) p.scale.setScalar(1 + Math.sin(t * 2) * 0.04);
-      petals.update(dt, Math.sin(t * 0.3) * 0.4);
+      g.drawImage(skyBrush, -((v.camX * v.S * 0.06) % 200) - 200, 0, W + 400, H * 0.45);
+      drawLayer(g, v, far);
+      fogBand(g, v.pyEff(HORIZON) - 0.6 * v.S, 1.6 * v.S, 0.7, W);
+      drawLayer(g, v, mid);
+      fogBand(g, v.pyEff(HORIZON) - 0.2 * v.S, 1.1 * v.S, 0.6, W);
+      // 光束
+      if (style.rays > 0 && v.quality >= 1) {
+        g.save();
+        g.globalCompositeOperation = "screen";
+        g.globalAlpha = style.rays;
+        g.drawImage(rays, -((v.camX * v.S * 0.2) % (W * 0.5)), 0, W * 1.6, H);
+        g.restore();
+      }
+      drawLayer(g, v, near);
+      if (canopy) drawLayer(g, v, canopy);
+      // 地面
+      const gy = v.pyEff(GROUND_TOP);
+      const scale = v.k / RES;
+      g.fillStyle = css(style.ground[1]);
+      g.fillRect(0, gy, W, H - gy);
+      const dx = v.px(groundCanvas.x0);
+      const sx0 = Math.max(0, Math.floor(-dx / scale));
+      const sx1 = Math.min(groundCanvas.canvas.width, Math.ceil((W - dx) / scale));
+      if (sx1 > sx0) g.drawImage(groundCanvas.canvas, sx0, 0, sx1 - sx0, groundCanvas.canvas.height, dx + sx0 * scale, gy, (sx1 - sx0) * scale, groundCanvas.canvas.height * scale);
+      fogBand(g, gy, 0.5 * v.k, 0.55, W);
+
+      // 出口：房间右端的一道门，开了以后透出白光
+      if (!boss) {
+        const x = v.px(width + 0.6);
+        const top = v.py(4.4, 0);
+        const bot = v.py(0, 0);
+        const w = 1.4 * v.k;
+        g.save();
+        if (doorOpen) {
+          const glow = g.createLinearGradient(x - w, 0, x + w, 0);
+          glow.addColorStop(0, "rgba(255,255,250,0)");
+          glow.addColorStop(0.5, `rgba(255,255,250,${0.75 + 0.15 * Math.sin(v.time * 4)})`);
+          glow.addColorStop(1, "rgba(255,255,250,0)");
+          g.fillStyle = glow;
+          g.fillRect(x - w, top, w * 2, bot - top + 0.6 * v.k);
+        } else {
+          g.fillStyle = "rgba(150,16,26,0.55)";
+          g.fillRect(x - w * 0.45, top, w * 0.9, bot - top);
+        }
+        g.fillStyle = nearCol;
+        g.fillRect(x - w * 0.62, top, w * 0.18, bot - top);
+        g.fillRect(x + w * 0.44, top, w * 0.18, bot - top);
+        g.fillRect(x - w * 0.85, top - 0.2 * v.k, w * 1.7, 0.25 * v.k);
+        g.restore();
+      }
+
+      // 大招时把背景压暗，角色和特效更显眼
+      if (dim > 0.01) {
+        g.fillStyle = `rgba(6,6,8,${Math.min(0.75, dim * 0.7)})`;
+        g.fillRect(0, 0, W, H);
+      }
+    },
+    drawFront(g, v) {
+      petals.draw(g, v);
+      drawLayer(g, v, front);
+      if (v.quality >= 1) {
+        if (!grainPattern) grainPattern = g.createPattern(grain, "repeat");
+        if (grainPattern) {
+          g.save();
+          g.globalAlpha = style.night ? 0.35 : 0.6;
+          g.fillStyle = grainPattern;
+          g.fillRect(0, 0, v.W, v.H);
+          g.restore();
+        }
+      }
+      // 暗角
+      const vg = g.createRadialGradient(v.W / 2, v.H / 2, Math.min(v.W, v.H) * 0.35, v.W / 2, v.H / 2, Math.max(v.W, v.H) * 0.75);
+      vg.addColorStop(0, "rgba(0,0,0,0)");
+      vg.addColorStop(1, style.night ? "rgba(0,0,0,0.5)" : "rgba(30,28,24,0.32)");
+      g.fillStyle = vg;
+      g.fillRect(0, 0, v.W, v.H);
     },
     dispose() {
-      for (const o of owned) o.dispose();
-      petals.dispose();
-      group.clear();
+      for (const l of [far, mid, near, front, canopy]) if (l) l.canvas.width = l.canvas.height = 0;
+      groundCanvas.canvas.width = groundCanvas.canvas.height = 0;
     },
   };
 }
+

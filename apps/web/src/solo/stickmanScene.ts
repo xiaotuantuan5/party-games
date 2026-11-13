@@ -1,8 +1,4 @@
 import * as THREE from "three";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { sfx, vibrate } from "../sound";
 import { CameraDirector, type Shot } from "./stickmanCamera";
 import {
@@ -28,12 +24,33 @@ import {
 } from "./stickmanData";
 import { MAP_STYLES, buildTheme, type Theme } from "./stickmanTheme";
 import { DamageNumbers, FXGEO, FxSystem, Particles, Trail, type NumberStyle } from "./stickmanFx";
-import { BugModel, FIGURE_COLOR, FIGURE_SCALE, P, STANCE, StickRig, glowMat, idlePose, keyed, mixPose, pose, runPose, type Debris, type Model, type Pose } from "./stickmanRig";
+import {
+  BugModel,
+  FIGURE_COLOR,
+  FIGURE_SCALE,
+  P,
+  STANCE,
+  StickRig,
+  heroRunPose,
+  idlePose,
+  keyed,
+  mixPose,
+  pose,
+  runPose,
+  runRate,
+  type Debris,
+  type GhostNode,
+  type Model,
+  type Pose,
+} from "./stickmanRig";
+import { LAYER, Node2D, View } from "./ink2d";
+import { ArrowNode, BigSword, DropNode, PropNode, ShadowNode, SwordSwarm } from "./stickmanProps";
 
 /**
- * 火柴人刷图：单人 2.5D 横版动作闯关，纯前端运行。
+ * 火柴人刷图：单人 2D 水墨横版动作闯关，纯前端运行。
  * 逻辑坐标：x 横向（房间从 0 到 width）、z 纵深（-3 ~ 3，负值离镜头远）、y 高度。
- * 攻击判定只在逻辑坐标里做，画面是 3D 的，相机平时是第三人称过肩视角，放大招时运镜。
+ * 攻击判定只在逻辑坐标里做；画面用 Canvas 2D 画，纵深越远画得越靠上（见 ink2d.ts）。
+ * three.js 只用来做向量和骨骼的数学，场景节点（Node2D）每帧按层级和纵深排序后画出来。
  */
 
 // ================= 对外接口 =================
@@ -117,7 +134,7 @@ const MAX_ATTACKERS = 3;
 const MEDIUM_COOLDOWN = 3;
 const MEDIUM_SLOWMO = 0.3;
 const SWORD_COUNT = 100;
-const WHITE_SWORD = 0xbfefff;
+const WHITE_SWORD = 0xf4f4ef;
 const ICE = ELEMENT_COLOR.ice;
 const FIRE = ELEMENT_COLOR.fire;
 const THUNDER = ELEMENT_COLOR.thunder;
@@ -267,7 +284,7 @@ interface Player {
   maxHp: number;
   mp: number;
   rig: StickRig;
-  shadow: THREE.Mesh;
+  shadow: ShadowNode;
   act: PAct | null;
   invuln: number;
   airSkills: number;
@@ -313,7 +330,7 @@ interface Enemy {
   model: Model;
   rig: StickRig | null;
   bug: BugModel | null;
-  shadow: THREE.Mesh;
+  shadow: ShadowNode;
   elite: boolean;
   boss: boolean;
   state: EState;
@@ -355,13 +372,13 @@ interface Enemy {
 interface Prop {
   kind: "crate" | "barrel";
   pos: THREE.Vector3;
-  mesh: THREE.Mesh;
+  mesh: PropNode;
   dead: boolean;
 }
 
 interface DropItem {
   kind: "coin" | "hp" | "mp";
-  mesh: THREE.Mesh;
+  mesh: DropNode;
   pos: THREE.Vector3;
   vel: THREE.Vector3;
   t: number;
@@ -370,7 +387,7 @@ interface DropItem {
 interface EnemyShot {
   pos: THREE.Vector3;
   vx: number;
-  mesh: THREE.Mesh;
+  mesh: ArrowNode;
   dmg: number;
   life: number;
 }
@@ -410,8 +427,8 @@ interface DebrisSet {
 }
 
 interface Ghost {
-  group: THREE.Group;
-  mat: THREE.MeshBasicMaterial;
+  node: GhostNode;
+  o0: number;
   life: number;
   max: number;
 }
@@ -452,21 +469,6 @@ const KEY_ACTIONS: Record<string, StickAction> = {
   n: 5,
 };
 
-/** 带一点起伏的低多边形岩石 */
-function rockGeometry(seed: number): THREE.BufferGeometry {
-  const g = new THREE.IcosahedronGeometry(1, 1);
-  const pos = g.attributes.position as THREE.BufferAttribute;
-  const v = new THREE.Vector3();
-  for (let i = 0; i < pos.count; i++) {
-    v.fromBufferAttribute(pos, i);
-    const n = Math.sin(v.x * 3.1 + seed) * Math.sin(v.y * 2.7 + seed * 1.3) * Math.sin(v.z * 3.7 + seed * 0.7) * 0.28;
-    v.multiplyScalar(1 + n);
-    pos.setXYZ(i, v.x, v.y, v.z);
-  }
-  g.computeVertexNormals();
-  return g;
-}
-
 /** 大招的运镜、时间点和效果 */
 interface AwakenPlan {
   shots: Shot[];
@@ -475,35 +477,19 @@ interface AwakenPlan {
 }
 
 export class StickmanScene {
-  private renderer: THREE.WebGLRenderer;
-  private composer: EffectComposer;
-  private bloom: UnrealBloomPass;
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+  private view = new View();
   private scene = new THREE.Scene();
   private director = new CameraDirector();
   private clock = new THREE.Clock();
   private resizeObserver: ResizeObserver;
-  private hemi = new THREE.HemisphereLight(0xdcf0ff, 0xd8ccb0, 1.6);
-  private sun = new THREE.DirectionalLight(0xfff4e0, 2.0);
+  /** 大招时压暗背景：intensity 从 1 降到 0.25 表示压得最暗（沿用以前灯光的写法） */
+  private hemi = { intensity: 1 };
+  private sun = { intensity: 1 };
 
-  // ---- 共用资源 ----
-  private rockGeos = [0, 1, 2, 3].map((s) => rockGeometry(s * 1.9 + 0.4));
-  private rockMat = new THREE.MeshStandardMaterial({ color: 0x3a3440, roughness: 0.95, flatShading: true });
-  private rockMat2 = new THREE.MeshStandardMaterial({ color: 0x2a2630, roughness: 0.95, flatShading: true });
-  private shadowGeo = new THREE.CircleGeometry(0.5, 20);
-  private shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.45, depthWrite: false });
-  private crateGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
-  private crateMat = new THREE.MeshStandardMaterial({ color: 0x8a5a2a, roughness: 0.9, flatShading: true });
-  private barrelGeo = new THREE.CylinderGeometry(0.38, 0.42, 0.95, 12);
-  private barrelMat = new THREE.MeshStandardMaterial({ color: 0xa02a1a, emissive: new THREE.Color(0x400800), roughness: 0.6 });
-  private coinGeo = new THREE.CylinderGeometry(0.17, 0.17, 0.05, 14).rotateX(Math.PI / 2);
-  private potionGeo = new THREE.SphereGeometry(0.2, 12, 8);
-  private dropMats = { coin: glowMat(0xffc83a, 1.6), hp: glowMat(0xff3a4a, 1.8), mp: glowMat(0x3a8aff, 1.8) };
-  private arrowGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.9, 5).rotateZ(Math.PI / 2);
-  private arrowMat = glowMat(0xffe08a, 1.8);
-  private swordMesh: THREE.InstancedMesh;
-  private bigSword: THREE.Mesh;
-  private env = new THREE.Group();
-  private doorMat = new THREE.MeshBasicMaterial({ color: 0xff3020, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  private swordMesh = new SwordSwarm(SWORD_COUNT);
+  private bigSword = new BigSword();
   private role: RoleId = "sword";
   private theme: Theme | null = null;
   private lastDodge = -99;
@@ -539,7 +525,7 @@ export class StickmanScene {
   /** 落地挤压：1 刚落地，之后慢慢回到 0 */
   private landSquash = 0;
   /** 这一局使用的场景配色，开局时选定 */
-  private mapId: MapId = "maple";
+  private mapId: MapId = "ink";
   private roomW = 30;
   private wave = 0;
   private waveDelay = 0;
@@ -603,42 +589,20 @@ export class StickmanScene {
     private container: HTMLElement,
     private hooks: StickHooks,
   ) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
-    container.appendChild(this.renderer.domElement);
-    const camera = this.director.camera;
-    this.composer = new EffectComposer(this.renderer);
-    this.composer.addPass(new RenderPass(this.scene, camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.75, 0.4, 0.85);
-    this.composer.addPass(this.bloom);
-    this.composer.addPass(new OutputPass());
+    this.canvas = document.createElement("canvas");
+    const ctx = this.canvas.getContext("2d", { alpha: false });
+    if (!ctx) throw new Error("Canvas 2D 不可用");
+    this.ctx = ctx;
+    container.appendChild(this.canvas);
 
     this.director.enabled = localStorage.getItem(CINE_KEY) !== "off";
     this.fx = new FxSystem(this.scene);
     this.numbers = new DamageNumbers(this.scene);
-
-    this.scene.background = new THREE.Color(0xcfe6f4);
-    this.scene.fog = new THREE.Fog(0xcfe6f4, 40, 120);
-    this.sun.position.set(-4, 10, 8);
-    this.scene.add(this.hemi, this.sun, this.env, this.sparks.points, this.puffs.points, this.trail.mesh);
-
-    this.swordMesh = new THREE.InstancedMesh(
-      FXGEO.sword,
-      new THREE.MeshBasicMaterial({ color: new THREE.Color(WHITE_SWORD).multiplyScalar(2.2), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }),
-      SWORD_COUNT,
-    );
-    this.swordMesh.frustumCulled = false;
-    this.swordMesh.visible = false;
-    this.bigSword = new THREE.Mesh(
-      FXGEO.sword,
-      new THREE.MeshBasicMaterial({ color: new THREE.Color(0xfff0b0).multiplyScalar(2.6), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }),
-    );
-    this.bigSword.visible = false;
-    this.scene.add(this.swordMesh, this.bigSword);
+    this.scene.add(this.sparks.points, this.puffs.points, this.trail.mesh, this.swordMesh, this.bigSword);
 
     this.player = this.makePlayer();
     this.buildRoom(0);
+    this.resize();
     this.director.snap(this.player.pos, this.player.facing);
 
     window.addEventListener("keydown", this.onKeyDown);
@@ -646,8 +610,7 @@ export class StickmanScene {
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
     this.applyQuality();
-    this.resize();
-    this.renderer.setAnimationLoop(this.frame);
+    this.raf = requestAnimationFrame(this.loop);
 
     // 开发时方便在控制台调试，比如 __stick.awaken = 1；生产构建会去掉
     if (import.meta.env.DEV) (window as unknown as { __stick: StickmanScene }).__stick = this;
@@ -667,7 +630,7 @@ export class StickmanScene {
   private setRole(role: RoleId): void {
     this.role = role;
     this.player.rig.dispose();
-    const rig = new StickRig({ color: FIGURE_COLOR, glow: 0.04, scale: FIGURE_SCALE, keepWeapon: true, cape: true, outline: true, weapon: ROLES[role].weapon, gear: ROLES[role].gear });
+    const rig = this.heroRig(role);
     this.scene.add(rig.group);
     this.player.rig = rig;
   }
@@ -755,7 +718,7 @@ export class StickmanScene {
   }
 
   dispose(): void {
-    this.renderer.setAnimationLoop(null);
+    cancelAnimationFrame(this.raf);
     this.resizeObserver.disconnect();
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
@@ -767,43 +730,31 @@ export class StickmanScene {
     this.puffs.dispose();
     this.trail.dispose();
     this.disposeEnv();
-    const geos: THREE.BufferGeometry[] = [
-      ...this.rockGeos,
-      this.shadowGeo,
-      this.crateGeo,
-      this.barrelGeo,
-      this.coinGeo,
-      this.potionGeo,
-      this.arrowGeo,
-    ];
-    geos.forEach((g) => g.dispose());
-    const mats: THREE.Material[] = [
-      this.rockMat,
-      this.rockMat2,
-      this.shadowMat,
-      this.crateMat,
-      this.barrelMat,
-      this.arrowMat,
-      this.doorMat,
-      ...Object.values(this.dropMats),
-      this.swordMesh.material as THREE.Material,
-      this.bigSword.material as THREE.Material,
-    ];
-    mats.forEach((m) => m.dispose());
-    this.swordMesh.dispose();
-    this.bloom.dispose();
-    this.composer.dispose();
-    this.renderer.dispose();
-    this.renderer.domElement.remove();
+    this.scene.clear();
+    this.canvas.width = this.canvas.height = 0;
+    this.canvas.remove();
   }
 
   // ================= 场景搭建 =================
 
+  /** 主角：纯黑剪影、白色轮廓光、红围巾；剑客腰后挂刀鞘 */
+  private heroRig(role: RoleId): StickRig {
+    return new StickRig({
+      color: FIGURE_COLOR,
+      scale: FIGURE_SCALE,
+      keepWeapon: true,
+      outline: true,
+      style: "hero",
+      weapon: ROLES[role].weapon,
+      gear: ROLES[role].gear,
+      sheath: role === "sword",
+    });
+  }
+
   private makePlayer(): Player {
-    const rig = new StickRig({ color: FIGURE_COLOR, glow: 0.04, scale: FIGURE_SCALE, keepWeapon: true, cape: true, outline: true, weapon: ROLES[this.role].weapon, gear: ROLES[this.role].gear });
+    const rig = this.heroRig(this.role);
     this.scene.add(rig.group);
-    const shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
-    shadow.rotation.x = -Math.PI / 2;
+    const shadow = new ShadowNode();
     this.scene.add(shadow);
     return {
       pos: new THREE.Vector3(2.5, 0, 0),
@@ -829,7 +780,6 @@ export class StickmanScene {
   private disposeEnv(): void {
     this.theme?.dispose();
     this.theme = null;
-    this.env.clear();
   }
 
   /** 按房间搭古风场景（见 stickmanTheme.ts） */
@@ -837,20 +787,16 @@ export class StickmanScene {
     this.disposeEnv();
     const def = ROOMS[idx]!;
     this.roomW = def.width;
-    this.theme = buildTheme(this.env, idx, def.width, this.doorMat, MAP_STYLES[this.mapId]);
-    this.scene.background = new THREE.Color(this.theme.fog);
-    this.scene.fog = new THREE.Fog(this.theme.fog, this.theme.fogNear, this.theme.fogFar);
-    this.hemi.color.set(this.theme.sky);
-    this.hemi.groundColor.set(this.theme.ground);
-    this.hemi.intensity = this.theme.hemi;
-    // 夜间的月光：偏冷、不太亮
-    this.sun.color.set(0xb8d4ff);
-    this.sun.intensity = 1.1;
+    this.theme = buildTheme(idx, def.width, MAP_STYLES[this.mapId]);
+    this.theme.petals.density = this.quality === 0 ? 0.5 : 1;
+    this.hemi.intensity = 1;
+    this.sun.intensity = 1;
+    this.director.setBounds(this.roomW, this.view);
   }
 
   private openDoor(): void {
     this.doorOpen = true;
-    this.doorMat.color.set(0x5ad8ff).multiplyScalar(1.4);
+    this.theme?.setDoorOpen(true);
     sfx.gate();
     this.hooks.onBanner({ kind: "info", text: "门开了，向右前进 →" });
   }
@@ -906,10 +852,7 @@ export class StickmanScene {
     for (const d of this.drops) d.mesh.removeFromParent();
     for (const s of this.shots) s.mesh.removeFromParent();
     for (const d of this.debris) this.removeDebris(d);
-    for (const g of this.ghosts) {
-      g.group.removeFromParent();
-      g.mat.dispose();
-    }
+    for (const g of this.ghosts) g.node.removeFromParent();
     this.enemies = [];
     this.props = [];
     this.drops = [];
@@ -950,10 +893,9 @@ export class StickmanScene {
     this.doorOpen = false;
     for (let i = 0; i < def.crates + def.barrels; i++) {
       const kind = i < def.crates ? "crate" : "barrel";
-      const mesh = new THREE.Mesh(kind === "crate" ? this.crateGeo : this.barrelGeo, kind === "crate" ? this.crateMat : this.barrelMat);
+      const mesh = new PropNode(kind);
       const pos = new THREE.Vector3(rand(6, this.roomW - 4), 0, rand(-2.6, 2.6));
-      mesh.position.set(pos.x, kind === "crate" ? 0.45 : 0.48, pos.z);
-      mesh.rotation.y = rand(0, Math.PI);
+      mesh.position.set(pos.x, 0, pos.z);
       this.scene.add(mesh);
       this.props.push({ kind, pos, mesh, dead: false });
     }
@@ -964,7 +906,13 @@ export class StickmanScene {
 
   // ================= 主循环 =================
 
-  private frame = (): void => {
+  private raf = 0;
+  private loop = (): void => {
+    this.raf = requestAnimationFrame(this.loop);
+    this.frame();
+  };
+
+  private frame(): void {
     const realDt = Math.min(0.05, this.clock.getDelta());
     this.watchPerformance(realDt);
     if (this.paused) {
@@ -1050,15 +998,38 @@ export class StickmanScene {
     this.updateTrail();
     this.theme?.update(realDt, this.realTime);
 
-    this.director.update(realDt, this.player.pos, this.player.facing);
+    this.director.update(realDt, this.player.pos, this.player.facing, this.view);
     this.hudIn -= realDt;
     if (this.hudIn <= 0 && (this.state === "playing" || this.state === "dead")) this.emitHud();
     this.render();
-  };
+  }
 
+  /** 画一帧：背景 → 地面层 → 角色和道具（按纵深）→ 特效 → 粒子 → 数字 → 前景 */
   private render(): void {
-    if (this.quality >= 1) this.composer.render();
-    else this.renderer.render(this.scene, this.director.camera);
+    const g = this.ctx;
+    const v = this.view;
+    v.time = this.realTime;
+    v.quality = this.quality;
+    v.glowBudget = 24;
+    g.setTransform(v.dpr, 0, 0, v.dpr, 0, 0);
+    g.imageSmoothingQuality = "low";
+    if (this.director.roll) {
+      g.translate(v.W / 2, v.H / 2);
+      g.rotate(this.director.roll);
+      g.scale(1.06, 1.06);
+      g.translate(-v.W / 2, -v.H / 2);
+    }
+    const dim = Math.max(0, Math.min(1, (1 - this.hemi.intensity) / 0.75));
+    if (this.theme) this.theme.drawBack(g, v, dim);
+    else {
+      g.fillStyle = "#d8d4cc";
+      g.fillRect(0, 0, v.W, v.H);
+    }
+    const nodes: Node2D[] = [];
+    for (const c of this.scene.children) if (c instanceof Node2D && c.visible) nodes.push(c);
+    nodes.sort((a, b) => a.layer - b.layer || a.depth() - b.depth());
+    for (const n of nodes) n.draw(g, v);
+    this.theme?.drawFront(g, v);
   }
 
   private watchPerformance(dt: number): void {
@@ -1082,9 +1053,10 @@ export class StickmanScene {
 
   private applyQuality(): void {
     const dpr = window.devicePixelRatio || 1;
-    this.renderer.setPixelRatio(this.quality === 2 ? Math.min(dpr, 1.75) : this.quality === 1 ? Math.min(dpr, 1.1) : 1);
+    this.view.dpr = this.quality === 2 ? Math.min(dpr, 2) : this.quality === 1 ? Math.min(dpr, 1.25) : 1;
     const density = this.quality === 0 ? 0.5 : 1;
     this.sparks.density = this.puffs.density = density;
+    if (this.theme) this.theme.petals.density = density;
     this.resize();
   }
 
@@ -1092,13 +1064,14 @@ export class StickmanScene {
     const w = this.container.clientWidth;
     const h = this.container.clientHeight;
     if (!w || !h) return;
-    this.renderer.setSize(w, h, false);
-    this.composer.setPixelRatio(this.renderer.getPixelRatio());
-    this.composer.setSize(w, h);
-    this.bloom.resolution.set(w / 2, h / 2);
-    const cam = this.director.camera;
-    cam.aspect = w / h;
-    cam.updateProjectionMatrix();
+    const v = this.view;
+    v.W = w;
+    v.H = h;
+    // 1 个世界单位多少像素：画面高度能放下约 5.6 个单位，横向至少放下 9 个单位
+    v.S = Math.min(h / 5.6, w / 9);
+    this.canvas.width = Math.round(w * v.dpr);
+    this.canvas.height = Math.round(h * v.dpr);
+    this.director.setBounds(this.roomW, v);
   }
 
   // ================= 输入 =================
@@ -1302,7 +1275,7 @@ export class StickmanScene {
       if (Math.abs(mv.x) > 0.2) p.facing = sign(mv.x);
     }
     p.moving = !p.act && ground && mv.lengthSq() > 0.02;
-    if (p.moving) p.runPhase += dt * 11;
+    if (p.moving) p.runPhase += dt * runRate(Math.hypot(p.vel.x, p.vel.z), FIGURE_SCALE);
     if (!playing && !p.act) p.vel.set(0, p.vel.y, 0);
 
     // 物理
@@ -1347,7 +1320,7 @@ export class StickmanScene {
     this.placeShadow(p.shadow, p.pos, FIGURE_SCALE);
   }
 
-  private placeShadow(shadow: THREE.Mesh, pos: THREE.Vector3, size: number): void {
+  private placeShadow(shadow: ShadowNode, pos: THREE.Vector3, size: number): void {
     const s = size * Math.max(0.35, 1 - pos.y * 0.12);
     shadow.position.set(pos.x, 0.03, pos.z);
     shadow.scale.setScalar(s);
@@ -1477,7 +1450,7 @@ export class StickmanScene {
     const act = p.act;
     if (!act) {
       if (p.pos.y > 0.01) return p.vel.y > 0 ? P.jumpUp : P.fall;
-      if (p.moving) return runPose(p.runPhase);
+      if (p.moving) return heroRunPose(p.runPhase);
       return idlePose(this.realTime);
     }
     const k = Math.min(1, act.t / act.dur);
@@ -2291,10 +2264,9 @@ export class StickmanScene {
     p.ghostIn -= dt;
     if (p.ghostIn > 0) return;
     p.ghostIn = interval;
-    const g = p.rig.ghost(color, opacity);
-    g.mat.userData.o0 = opacity;
-    this.scene.add(g.group);
-    this.ghosts.push({ group: g.group, mat: g.mat, life: 0.3, max: 0.3 });
+    const node = p.rig.ghost(color, opacity);
+    this.scene.add(node);
+    this.ghosts.push({ node, o0: opacity, life: 0.3, max: 0.3 });
   }
 
   private updateGhosts(dt: number): void {
@@ -2302,10 +2274,9 @@ export class StickmanScene {
       const g = this.ghosts[i]!;
       g.life -= dt;
       if (g.life <= 0) {
-        g.group.removeFromParent();
-        g.mat.dispose();
+        g.node.removeFromParent();
         this.ghosts.splice(i, 1);
-      } else g.mat.opacity = (g.mat.userData.o0 as number) * (g.life / g.max);
+      } else g.node.opacity = g.o0 * (g.life / g.max);
     }
   }
 
@@ -2327,6 +2298,8 @@ export class StickmanScene {
       }
     }
     p.rig.weaponEnds(this.tip, this.hilt);
+    // 长枪只拖枪头那一段，不然整根枪杆扫出一大片
+    this.trail.inner = this.role === "spear" ? 0.8 : 0.5;
     this.trail.push(this.hilt, this.tip, on && p.rig.group.visible, color);
   }
 
@@ -2348,7 +2321,7 @@ export class StickmanScene {
     let radius: number;
     let height: number;
     if (kind === "boss") {
-      rig = new StickRig({ color: BOSS.color, glow: 0.04, scale: 2.5 * FIGURE_SCALE, weapon: "hammer", crown: true, cape: true });
+      rig = new StickRig({ color: BOSS.color, scale: 1.75, weapon: "hammer", style: "boss", crown: true, cape: true });
       model = rig;
       hp = BOSS.hp;
       dmg = BOSS.dmg;
@@ -2366,15 +2339,16 @@ export class StickmanScene {
         radius = 0.5 * s;
         height = 1.1 * s;
       } else {
-        // 碰撞范围按原来的大小算，画面上的火柴人缩小
-        const scale = (kind === "goblin" ? 0.85 : 1) * s;
+        // 灰色武士：刀手扎头巾拿弯刀，弓手戴斗笠背箭袋，藤牌兵戴铁盔拿藤牌
+        const scale = (kind === "goblin" ? 0.9 : 1) * s;
         rig = new StickRig({
           color: def.color,
-          glow: 0.04,
-          scale: scale * FIGURE_SCALE,
+          scale: scale * 1.08,
           keepWeapon: true,
-          weapon: kind === "goblin" ? "dagger" : kind === "archer" ? "bow" : "none",
-          hat: kind === "goblin",
+          style: "samurai",
+          weapon: kind === "goblin" ? "sword" : kind === "archer" ? "bow" : "dagger",
+          gear: kind === "goblin" ? "band" : kind === "shield" ? "helmet" : "none",
+          hat: kind === "archer",
           quiver: kind === "archer",
           shield: kind === "shield",
         });
@@ -2388,8 +2362,7 @@ export class StickmanScene {
       score = def.score * (elite ? 3 : 1);
       name = (elite ? "精英" : "") + def.name;
     }
-    const shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
-    shadow.rotation.x = -Math.PI / 2;
+    const shadow = new ShadowNode();
     this.scene.add(model.group, shadow);
     const e: Enemy = {
       kind,
@@ -2758,7 +2731,8 @@ export class StickmanScene {
     e.tele = [];
     const f = e.facing;
     if (e.kind === "archer") {
-      const mesh = new THREE.Mesh(this.arrowGeo, this.arrowMat);
+      const mesh = new ArrowNode();
+      mesh.dir = f;
       const pos = new THREE.Vector3(e.pos.x + f * 0.6, 1.35 * (e.elite ? 1.3 : 1), e.pos.z);
       mesh.position.copy(pos);
       this.scene.add(mesh);
@@ -3151,7 +3125,7 @@ export class StickmanScene {
   }
 
   private spawnDrop(at: THREE.Vector3, kind: DropItem["kind"]): void {
-    const mesh = new THREE.Mesh(kind === "coin" ? this.coinGeo : this.potionGeo, this.dropMats[kind]);
+    const mesh = new DropNode(kind);
     const pos = new THREE.Vector3(at.x, Math.max(0.3, at.y + 0.6), at.z);
     mesh.position.copy(pos);
     this.scene.add(mesh);
@@ -3456,7 +3430,7 @@ export class StickmanScene {
           at: 2.1,
           fn: () => {
             this.bigSword.visible = true;
-            (this.bigSword.material as THREE.MeshBasicMaterial).opacity = 1;
+            this.bigSword.material.opacity = 1;
             sfx.swing(true);
           },
           done: false,
@@ -3521,7 +3495,7 @@ export class StickmanScene {
           this.bigSword.position.set(bigX, y - 0.6, bigZ);
           this.bigSword.rotation.set(Math.PI, 0, 0);
           this.bigSword.scale.set(4, 7, 4);
-          if (t > 2.5) (this.bigSword.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - (t - 2.5) / 0.4);
+          if (t > 2.5) this.bigSword.material.opacity = Math.max(0, 1 - (t - 2.5) / 0.4);
         }
       },
       onEnd: () => {
