@@ -107,7 +107,10 @@ type Point = { x: number; y: number };
 
 /** 在屏幕上找到某个玩家的头像（同一个人可能出现多次，取第一个看得见的） */
 function findAvatar(id: string): { el: HTMLElement; rect: DOMRect } | null {
-  for (const el of document.querySelectorAll<HTMLElement>(`[data-avatar-seed="${CSS.escape(id)}"]`)) {
+  const sel = `[data-avatar-seed="${CSS.escape(id)}"]`;
+  // 胜利结算盖在最上面时，优先砸领奖台上的头像
+  const all = [...document.querySelectorAll<HTMLElement>(`.victory ${sel}`), ...document.querySelectorAll<HTMLElement>(sel)];
+  for (const el of all) {
     if (el.closest(".throw-layer")) continue;
     const rect = el.getBoundingClientRect();
     if (rect.width > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth) {

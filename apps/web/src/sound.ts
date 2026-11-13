@@ -445,6 +445,41 @@ export const sfx = {
     tone(1319, 0.12, { type: "triangle", gain: 0.15 });
     tone(1760, 0.35, { type: "triangle", gain: 0.15, delay: 0.1 });
   },
+  /** 胜利结算：小军鼓滚奏，越滚越快越响 */
+  drumRoll(dur = 1.1) {
+    let t = 0;
+    while (t < dur) {
+      const k = t / dur;
+      noise(0.05, { filter: "bandpass", from: 2200, to: 1400, gain: 0.08 + k * 0.22, delay: t });
+      t += 0.06 - k * 0.035;
+    }
+    // 最后一下镲片
+    noise(1.4, { filter: "highpass", from: 9000, to: 4000, gain: 0.3, delay: dur });
+    tone(70, 0.5, { slideTo: 40, gain: 0.5, delay: dur });
+  },
+  /** 胜利结算：铜管号角 “当～当～当当——” */
+  fanfare(delay = 0) {
+    const brass = (f: number, dur: number, d: number) => {
+      tone(f, dur, { type: "sawtooth", gain: 0.07, delay: delay + d });
+      tone(f * 2, dur, { type: "triangle", gain: 0.05, delay: delay + d });
+      tone(f / 2, dur, { type: "square", gain: 0.03, delay: delay + d });
+    };
+    brass(392, 0.16, 0); // G
+    brass(392, 0.16, 0.18);
+    brass(392, 0.16, 0.36);
+    brass(523, 0.9, 0.54); // C
+    brass(659, 0.9, 0.54); // E
+    brass(784, 1.2, 0.54); // G
+    [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, 0.5, { gain: 0.05, delay: delay + 0.6 + i * 0.08 }));
+  },
+  /** 烟花：升空的哨音 + 炸开的噼啪 */
+  firework(delay = 0) {
+    tone(600 + Math.random() * 300, 0.35, { type: "sine", slideTo: 1800, gain: 0.03, delay });
+    noise(0.5, { filter: "lowpass", from: 2400, to: 100, gain: 0.25, delay: delay + 0.35 });
+    for (let i = 0; i < 6; i++) {
+      noise(0.03, { filter: "highpass", from: 6000, to: 3000, gain: 0.1, delay: delay + 0.45 + Math.random() * 0.5 });
+    }
+  },
   win() {
     const d = 0.8; // 先让爆炸声播完
     [523, 659, 784].forEach((f, i) => tone(f, 0.18, { type: "triangle", gain: 0.18, delay: d + i * 0.14 }));
